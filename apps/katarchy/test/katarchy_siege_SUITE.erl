@@ -7,23 +7,44 @@
 -export([suite/0, all/0]).
 
 %% Test cases
--export([movement_obstacle/1, movement_stop/1,
-         single_mech/1, sitting_ducks/1]).
+-export([movement_limit_left/1,
+         movement_limit_right/1,
+         movement_obstacle/1,
+         movement_stop/1,
+         single_mech/1,
+         sitting_ducks/1]).
 
 %%--------------------------------------------------------------------
 %% CT callbacks
 %%--------------------------------------------------------------------
 suite() ->
-  [{timetrap,{minutes,1}}].
-
+  [{timetrap, {seconds, 10}}].
 
 all() ->
-  [movement_obstacle, movement_stop,
-   single_mech, sitting_ducks].
+  [movement_limit_left,
+   movement_limit_right,
+   movement_obstacle,
+   movement_stop,
+   single_mech,
+   sitting_ducks].
 
 %%--------------------------------------------------------------------
 %% TEST CASES
 %%--------------------------------------------------------------------
+%% Test that one left minion eventually escapes the siege.
+movement_limit_left(_Config) ->
+  MechL = #mech{position = {0,0}, speed = 1},
+  MechR = #mech{position = {0,1}, side = right},
+  [MechL2, MechR] = katarchy_siege:run([MechL, MechR]),
+  undefined = MechL2#mech.position.
+
+%% Test that one right minion eventually escapes the siege.
+movement_limit_right(_Config) ->
+  MechL = #mech{position = {0,0}},
+  MechR = #mech{position = {0,1}, speed = 1, side = right},
+  [MechL, MechR2] = katarchy_siege:run([MechL, MechR]),
+  undefined = MechR2#mech.position.
+
 %% Test that one mech can move until one obstacle.
 movement_obstacle(_Config) ->
   Mech = #mech{position = {0,0}, speed = 1},

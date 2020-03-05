@@ -4,6 +4,8 @@
 
 -export([run/1]).
 
+-define(GRID_LIMIT, 10).
+
 %%--------------------------------------------------------------------
 %% Exported functions
 %%--------------------------------------------------------------------
@@ -22,6 +24,8 @@ run(Mechs) ->
 do_movement(Mechs) ->
   do_movement(Mechs, Mechs).
 
+do_movement([#mech{position = undefined}|LeftToMove], AllMechs) ->
+  do_movement(LeftToMove, AllMechs);
 do_movement([Mech|LeftToMove], AllMechs) ->
   NewMechs = move(Mech, Mech#mech.speed, AllMechs),
   do_movement(LeftToMove, NewMechs);
@@ -33,9 +37,15 @@ move(_Mech, 0, Mechs) ->
 move(Mech, Speed, Mechs) ->
   {PosX, PosY} = Mech#mech.position,
   TargetPos = case Mech#mech.side of
-            left -> {PosX + 1, PosY};
-            right -> {PosX -1, PosY}
-          end,
+                left when PosX > ?GRID_LIMIT ->
+                  undefined;
+                left ->
+                  {PosX + 1, PosY};
+                right when PosX =:= 0 ->
+                  undefined;
+                right ->
+                  {PosX - 1, PosY}
+              end,
   case lists:keymember(TargetPos, 2, Mechs) of
     true ->
       Mechs;
