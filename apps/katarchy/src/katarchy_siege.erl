@@ -10,30 +10,34 @@
 %% Exported functions
 %%--------------------------------------------------------------------
 run(Mechs) ->
-  case do_movement(Mechs) of
-    Mechs ->
-      Mechs;
-    NewMechs ->
-      ct:log("NewMechs: ~p~n", [NewMechs]),
-      run(NewMechs)
-  end.
+  {NewMechs, Turns} = run_turns(Mechs, []),
+  {NewMechs, lists:reverse(Turns)}.
 
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
 do_movement(Mechs) ->
-  do_movement(Mechs, Mechs).
+  FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
+  FasterMechs = lists:sort(FasterFirst, Mechs),
+  do_movement(FasterMechs, Mechs, {[],[]}).
 
-do_movement([#mech{position = undefined}|LeftToMove], AllMechs) ->
-  do_movement(LeftToMove, AllMechs);
-do_movement([Mech|LeftToMove], AllMechs) ->
-  NewMechs = move(Mech, Mech#mech.speed, AllMechs),
-  do_movement(LeftToMove, NewMechs);
-do_movement([], MovedMechs) ->
-  MovedMechs.
+do_movement([#mech{position = undefined}|LeftToMove], AllMechs, Passes) ->
+  do_movement(LeftToMove, AllMechs, Passes);
+do_movement([Mech|LeftToMove], AllMechs, {CurrentPass, PrevPass} = Passes) ->
+  case move(Mech, Mech#mech.speed, AllMechs) of
+    {complete, NewMechs} ->
+      do_movement(LeftToMove, NewMechs, Passes);
+    {incomplete, NewMech, NewMechs} ->
+      do_movement(LeftToMove, NewMechs, {[NewMech|CurrentPass], PrevPass})
+  end;
+do_movement([], NewMechs, {SamePass, SamePass}) ->
+  NewMechs;
+do_movement([], NewMechs, {CurrentPass, _}) ->
+  do_movement(lists:reverse(CurrentPass), NewMechs, {[], CurrentPass}).
+
 
 move(_Mech, 0, Mechs) ->
-  Mechs;
+  {complete, Mechs};
 move(Mech, Speed, Mechs) ->
   {PosX, PosY} = Mech#mech.position,
   TargetPos = case Mech#mech.side of
@@ -48,10 +52,18 @@ move(Mech, Speed, Mechs) ->
               end,
   case lists:keymember(TargetPos, 2, Mechs) of
     true ->
-      Mechs;
+      {incomplete, Mech, Mechs};
     false ->
       NewMech = Mech#mech{position = TargetPos},
       NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
       move(NewMech, Speed-1, NewMechs)
+  end.
+
+run_turns(Mechs, Turns) ->
+  case do_movement(Mechs) of
+    Mechs ->
+      {Mechs, Turns};
+    NewMechs ->
+      run_turns(NewMechs, [NewMechs|Turns])
   end.
 
