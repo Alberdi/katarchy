@@ -11,6 +11,9 @@
          attack_facing/1,
          attack_not_facing/1,
          attack_not_same_side/1,
+         attack_power/1,
+         attack_power_overkill/1,
+         attack_power_ranged/1,
          attack_ranged/1,
          attack_ranged_double_ko/1,
          attack_ranged_no_target/1,
@@ -44,6 +47,9 @@ all() ->
    attack_facing,
    attack_not_facing,
    attack_not_same_side,
+   attack_power,
+   attack_power_overkill,
+   attack_power_ranged,
    attack_ranged,
    attack_ranged_double_ko,
    attack_ranged_no_target,
@@ -71,65 +77,89 @@ all() ->
 %%--------------------------------------------------------------------
 %% Test that two mechs can ko each other.
 attack_double_ko(_Config) ->
-  MechL = #mech{position = {0,0}, skills = [attack]},
-  MechR = #mech{position = {1,0}, skills = [attack], side = right},
+  MechL = #mech{position = {0,0}, attack_power = 1},
+  MechR = #mech{position = {1,0}, attack_power = 1, side = right},
   {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
   undefined = MechL2#mech.position,
   undefined = MechR2#mech.position.
 
-%% Test that 
-
 %% Test that one mech can attack a rival that it's facing.
 attack_facing(_Config) ->
-  MechL = #mech{position = {0,0}, skills = [attack]},
+  MechL = #mech{position = {0,0}, attack_power = 1},
   MechR = #mech{position = {1,0}, side = right},
   {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
   undefined = MechR2#mech.position.
 
 %% Test that one mech can't attack a rival that isn't facing.
 attack_not_facing(_Config) ->
-  MechL = #mech{position = {1,0}, skills = [attack]},
+  MechL = #mech{position = {1,0}, attack_power = 1},
   MechR = #mech{position = {0,0}, side = right},
   {[MechL, MechR], _} = katarchy_siege:run([MechL, MechR]).
 
 %% Test that one mech can't attack an ally.
 attack_not_same_side(_Config) ->
-  Mech1 = #mech{position = {0,0}, skills = [attack]},
+  Mech1 = #mech{position = {0,0}, attack_power = 1},
   Mech2 = #mech{position = {1,0}},
   {[Mech1, Mech2], _} = katarchy_siege:run([Mech1, Mech2]),
   {1,0} = Mech2#mech.position.
 
+%% Test that the attack power allows to damage a rival faster.
+attack_power(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 5},
+  MechR = #mech{position = {1,0}, side = right},
+  {[MechL, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechR2#mech.position,
+  2 = length(Turns).
+
+%% Test that the attack power allows to overdamage a rival.
+attack_power_overkill(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 500},
+  MechR = #mech{position = {1,0}, side = right},
+  {[MechL, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechR2#mech.position,
+  1 = length(Turns).
+
+%% Test that the attack power allows to damage a rival faster when ranged.
+attack_power_ranged(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 5, skills = [ranged]},
+  MechR = #mech{position = {4,0}, side = right},
+  {[MechL, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechR2#mech.position,
+  2 = length(Turns).
+
 %% Test that one mech can attack at range.
 attack_ranged(_Config) ->
-  MechL = #mech{position = {0,0}, skills = [attack_ranged]},
+  MechL = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
   MechR = #mech{position = {4,0}, side = right},
   {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
   undefined = MechR2#mech.position.
 
 %% Test that two ranged mechs can kill each other.
 attack_ranged_double_ko(_Config) ->
-  MechL = #mech{position = {0,0}, skills = [attack_ranged]},
-  MechR = #mech{position = {4,0}, skills = [attack_ranged], side = right},
+  MechL = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
+  MechR = #mech{position = {4,0}, attack_power = 1, skills = [ranged],
+                side = right},
   {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
   undefined = MechL2#mech.position,
   undefined = MechR2#mech.position.
 
 %% Test that one ranged mechs doesn't shoot if not needed.
 attack_ranged_no_target(_Config) ->
-  MechL = #mech{position = {0,0}, skills = [attack_ranged]},
+  MechL = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
   MechR = #mech{position = {4,1}, side = right},
   {[MechL, MechR], _} = katarchy_siege:run([MechL, MechR]).
 
 %% Test that one mech can't attack a friend.
 attack_ranged_not_same_side(_Config) ->
-  Mech1 = #mech{position = {0,0}, skills = [attack_ranged]},
+  Mech1 = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
   Mech2 = #mech{position = {4,0}},
   {[Mech1, Mech2], _} = katarchy_siege:run([Mech1, Mech2]).
 
 %% Test that one right mech can attack to the left.
 attack_ranged_right(_Config) ->
   MechL = #mech{position = {0,0}},
-  MechR = #mech{position = {4,0}, skills = [attack_ranged], side = right},
+  MechR = #mech{position = {4,0}, attack_power = 1, skills = [ranged],
+                side = right},
   {[MechL2, MechR], _} = katarchy_siege:run([MechL, MechR]),
   undefined = MechL2#mech.position.
 

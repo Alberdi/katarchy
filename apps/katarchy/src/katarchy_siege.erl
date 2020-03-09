@@ -21,7 +21,7 @@ run(Mechs) ->
 %%--------------------------------------------------------------------
 do_attack(Mechs) ->
   AttackingFun = fun(X) -> X#mech.position =/= undefined andalso
-                           lists:member(attack, X#mech.skills) end,
+                           X#mech.attack_power > 0 end,
   AttackingMechs = lists:filter(AttackingFun, Mechs),
   FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
   FasterMechs = lists:sort(FasterFirst, AttackingMechs),
@@ -39,7 +39,8 @@ do_attack([Mech|LeftToAttack], Mechs) ->
     NextPosition ->
       case lists:keyfind(NextPosition, 2, Mechs) of
         TargetMech when TargetMech#mech.side =/= Mech#mech.side ->
-          NewMech = TargetMech#mech{hit_points = TargetMech#mech.hit_points-1},
+          NewHitPoints = TargetMech#mech.hit_points - Mech#mech.attack_power,
+          NewMech = TargetMech#mech{hit_points = NewHitPoints},
           NewMechs = lists:keyreplace(TargetMech#mech.position, 2,
                                       Mechs, NewMech),
           do_attack(LeftToAttack, NewMechs);
@@ -51,7 +52,7 @@ do_attack([Mech|LeftToAttack], Mechs) ->
 
 do_attack_ranged(Mechs) ->
   AttackingFun = fun(X) -> X#mech.position =/= undefined andalso
-                           lists:member(attack_ranged, X#mech.skills) end,
+                           lists:member(ranged, X#mech.skills) end,
   AttackingMechs = lists:filter(AttackingFun, Mechs),
   FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
   FasterMechs = lists:sort(FasterFirst, AttackingMechs),
@@ -71,7 +72,8 @@ range_attack(_Mech, undefined, Mechs) ->
 range_attack(Mech, TargetPos, Mechs) ->
   case lists:keyfind(TargetPos, 2, Mechs) of
     TargetMech when TargetMech#mech.side =/= Mech#mech.side ->
-      NewMech = TargetMech#mech{hit_points = TargetMech#mech.hit_points-1},
+      NewHitPoints = TargetMech#mech.hit_points - Mech#mech.attack_power,
+      NewMech = TargetMech#mech{hit_points = NewHitPoints},
       lists:keyreplace(TargetPos, 2, Mechs, NewMech);
     _ ->
       NextPosition = next_position(TargetPos, Mech#mech.side),
