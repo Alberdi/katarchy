@@ -10,8 +10,11 @@
 %% Exported functions
 %%--------------------------------------------------------------------
 run(Mechs) ->
+  validate_setup(Mechs),
   {NewMechs, Turns} = run_turns(Mechs, []),
-  {NewMechs, lists:reverse(Turns)}.
+  Return = {NewMechs, lists:reverse(Turns)},
+  ct:log("katarchy_siege:run/1 returned ~p~n", [Return]),
+  Return.
 
 %%--------------------------------------------------------------------
 %% Internal functions
@@ -36,28 +39,56 @@ do_movement([], NewMechs, {CurrentPass, _}) ->
   do_movement(lists:reverse(CurrentPass), NewMechs, {[], CurrentPass}).
 
 
+jump(Mech, Mechs, Speed, BlockedPos) ->
+  case next_position(Mech#mech{position = BlockedPos}) of
+    undefined ->
+      {complete, Mechs};
+    NextPosition ->
+      case lists:keymember(NextPosition, 2, Mechs) of
+        true ->
+          {incomplete, Mech, Mechs};
+        false ->
+          move_step(Mech, NextPosition, Speed, Mechs)
+      end
+  end.
+
+
 move(_Mech, 0, Mechs) ->
   {complete, Mechs};
 move(Mech, Speed, Mechs) ->
-  {PosX, PosY} = Mech#mech.position,
-  TargetPos = case Mech#mech.side of
-                left when PosX > ?GRID_LIMIT ->
-                  undefined;
-                left ->
-                  {PosX + 1, PosY};
-                right when PosX =:= 0 ->
-                  undefined;
-                right ->
-                  {PosX - 1, PosY}
-              end,
+  TargetPos = next_position(Mech),
   case lists:keymember(TargetPos, 2, Mechs) of
     true ->
-      {incomplete, Mech, Mechs};
+      case lists:member(jump, Mech#mech.skills) of
+        true ->
+          jump(Mech, Mechs, Speed, TargetPos);
+        false ->
+          {incomplete, Mech, Mechs}
+      end;
     false ->
-      NewMech = Mech#mech{position = TargetPos},
-      NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
-      move(NewMech, Speed-1, NewMechs)
+      move_step(Mech, TargetPos, Speed, Mechs)
   end.
+
+
+move_step(Mech, TargetPos, Speed, Mechs) ->
+  NewMech = Mech#mech{position = TargetPos},
+  NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
+  move(NewMech, Speed-1, NewMechs).
+
+
+next_position(Mech) ->
+  {PosX, PosY} = Mech#mech.position,
+  case Mech#mech.side of
+    left when PosX > ?GRID_LIMIT ->
+      undefined;
+    left ->
+      {PosX + 1, PosY};
+    right when PosX =:= 0 ->
+      undefined;
+    right ->
+      {PosX - 1, PosY}
+  end.
+
 
 run_turns(Mechs, Turns) ->
   case do_movement(Mechs) of
@@ -65,5 +96,16 @@ run_turns(Mechs, Turns) ->
       {Mechs, Turns};
     NewMechs ->
       run_turns(NewMechs, [NewMechs|Turns])
+  end.
+
+
+validate_setup(Mechs) ->
+  Positions = [M#mech.position || M <- Mechs, M#mech.position =/= undefined],
+  UniquePositions = length(lists:usort(Positions)),
+  try
+    UniquePositions = length(Positions)
+  catch
+    error:{badmatch, _} ->
+      throw(invalid_setup)
   end.
 
