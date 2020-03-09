@@ -7,7 +7,16 @@
 -export([suite/0, all/0]).
 
 %% Test cases
--export([movement_double/1,
+-export([attack_double_ko/1,
+         attack_facing/1,
+         attack_not_facing/1,
+         attack_not_same_side/1,
+         attack_ranged/1,
+         attack_ranged_double_ko/1,
+         attack_ranged_no_target/1,
+         attack_ranged_not_same_side/1,
+         attack_ranged_right/1,
+         movement_double/1,
          movement_faster_first/1,
          movement_jump/1,
          movement_jump_blocked/1,
@@ -31,7 +40,16 @@ suite() ->
   [{timetrap, {seconds, 10}}].
 
 all() ->
-  [movement_double,
+  [attack_double_ko,
+   attack_facing,
+   attack_not_facing,
+   attack_not_same_side,
+   attack_ranged,
+   attack_ranged_double_ko,
+   attack_ranged_no_target,
+   attack_ranged_not_same_side,
+   attack_ranged_right,
+   movement_double,
    movement_faster_first,
    movement_jump,
    movement_jump_blocked,
@@ -51,7 +69,71 @@ all() ->
 %%--------------------------------------------------------------------
 %% TEST CASES
 %%--------------------------------------------------------------------
-%% Test that one minion can move double.
+%% Test that two mechs can ko each other.
+attack_double_ko(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [attack]},
+  MechR = #mech{position = {1,0}, skills = [attack], side = right},
+  {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechL2#mech.position,
+  undefined = MechR2#mech.position.
+
+%% Test that 
+
+%% Test that one mech can attack a rival that it's facing.
+attack_facing(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [attack]},
+  MechR = #mech{position = {1,0}, side = right},
+  {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechR2#mech.position.
+
+%% Test that one mech can't attack a rival that isn't facing.
+attack_not_facing(_Config) ->
+  MechL = #mech{position = {1,0}, skills = [attack]},
+  MechR = #mech{position = {0,0}, side = right},
+  {[MechL, MechR], _} = katarchy_siege:run([MechL, MechR]).
+
+%% Test that one mech can't attack an ally.
+attack_not_same_side(_Config) ->
+  Mech1 = #mech{position = {0,0}, skills = [attack]},
+  Mech2 = #mech{position = {1,0}},
+  {[Mech1, Mech2], _} = katarchy_siege:run([Mech1, Mech2]),
+  {1,0} = Mech2#mech.position.
+
+%% Test that one mech can attack at range.
+attack_ranged(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [attack_ranged]},
+  MechR = #mech{position = {4,0}, side = right},
+  {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechR2#mech.position.
+
+%% Test that two ranged mechs can kill each other.
+attack_ranged_double_ko(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [attack_ranged]},
+  MechR = #mech{position = {4,0}, skills = [attack_ranged], side = right},
+  {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechL2#mech.position,
+  undefined = MechR2#mech.position.
+
+%% Test that one ranged mechs doesn't shoot if not needed.
+attack_ranged_no_target(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [attack_ranged]},
+  MechR = #mech{position = {4,1}, side = right},
+  {[MechL, MechR], _} = katarchy_siege:run([MechL, MechR]).
+
+%% Test that one mech can't attack a friend.
+attack_ranged_not_same_side(_Config) ->
+  Mech1 = #mech{position = {0,0}, skills = [attack_ranged]},
+  Mech2 = #mech{position = {4,0}},
+  {[Mech1, Mech2], _} = katarchy_siege:run([Mech1, Mech2]).
+
+%% Test that one right mech can attack to the left.
+attack_ranged_right(_Config) ->
+  MechL = #mech{position = {0,0}},
+  MechR = #mech{position = {4,0}, skills = [attack_ranged], side = right},
+  {[MechL2, MechR], _} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechL2#mech.position.
+
+%% Test that one mech can move double.
 movement_double(_Config) ->
   MechL = #mech{position = {0,0}, speed = 2},
   MechR = #mech{position = {7,0}, speed = 1, side = right},

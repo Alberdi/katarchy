@@ -19,6 +19,66 @@ run(Mechs) ->
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
+do_attack(Mechs) ->
+  AttackingFun = fun(X) -> X#mech.position =/= undefined andalso
+                           lists:member(attack, X#mech.skills) end,
+  AttackingMechs = lists:filter(AttackingFun, Mechs),
+  FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
+  FasterMechs = lists:sort(FasterFirst, AttackingMechs),
+  NewMechs = do_attack(FasterMechs, Mechs),
+  NewMechs2 = do_attack_ranged(NewMechs),
+  lists:map(fun incapacitate_if_needed/1, NewMechs2).
+
+
+do_attack([], Mechs) ->
+  Mechs;
+do_attack([Mech|LeftToAttack], Mechs) ->
+  case next_position(Mech) of
+    undefined ->
+      do_attack(LeftToAttack, Mechs);
+    NextPosition ->
+      case lists:keyfind(NextPosition, 2, Mechs) of
+        TargetMech when TargetMech#mech.side =/= Mech#mech.side ->
+          NewMech = TargetMech#mech{hit_points = TargetMech#mech.hit_points-1},
+          NewMechs = lists:keyreplace(TargetMech#mech.position, 2,
+                                      Mechs, NewMech),
+          do_attack(LeftToAttack, NewMechs);
+        _ ->
+          do_attack(LeftToAttack, Mechs)
+      end
+  end.
+
+
+do_attack_ranged(Mechs) ->
+  AttackingFun = fun(X) -> X#mech.position =/= undefined andalso
+                           lists:member(attack_ranged, X#mech.skills) end,
+  AttackingMechs = lists:filter(AttackingFun, Mechs),
+  FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
+  FasterMechs = lists:sort(FasterFirst, AttackingMechs),
+  NewMechs = do_attack_ranged(FasterMechs, Mechs),
+  lists:map(fun incapacitate_if_needed/1, NewMechs).
+
+do_attack_ranged([], Mechs) ->
+  Mechs;
+do_attack_ranged([Mech|LeftToAttack], Mechs) ->
+  NextPosition = next_position(Mech),
+  NewMechs = range_attack(Mech, NextPosition, Mechs),
+  do_attack_ranged(LeftToAttack, NewMechs).
+
+
+range_attack(_Mech, undefined, Mechs) ->
+  Mechs;
+range_attack(Mech, TargetPos, Mechs) ->
+  case lists:keyfind(TargetPos, 2, Mechs) of
+    TargetMech when TargetMech#mech.side =/= Mech#mech.side ->
+      NewMech = TargetMech#mech{hit_points = TargetMech#mech.hit_points-1},
+      lists:keyreplace(TargetPos, 2, Mechs, NewMech);
+    _ ->
+      NextPosition = next_position(TargetPos, Mech#mech.side),
+      range_attack(Mech, NextPosition, Mechs)
+  end.
+
+
 do_movement(Mechs) ->
   FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
   FasterMechs = lists:sort(FasterFirst, Mechs),
@@ -39,8 +99,14 @@ do_movement([], NewMechs, {CurrentPass, _}) ->
   do_movement(lists:reverse(CurrentPass), NewMechs, {[], CurrentPass}).
 
 
+incapacitate_if_needed(Mech) when Mech#mech.hit_points =< 0 ->
+  Mech#mech{position = undefined};
+incapacitate_if_needed(Mech) ->
+  Mech.
+
+
 jump(Mech, Mechs, Speed, BlockedPos) ->
-  case next_position(Mech#mech{position = BlockedPos}) of
+  case next_position(BlockedPos, Mech#mech.side) of
     undefined ->
       {complete, Mechs};
     NextPosition ->
@@ -77,8 +143,10 @@ move_step(Mech, TargetPos, Speed, Mechs) ->
 
 
 next_position(Mech) ->
-  {PosX, PosY} = Mech#mech.position,
-  case Mech#mech.side of
+  next_position(Mech#mech.position, Mech#mech.side).
+
+next_position({PosX, PosY}, Side) ->
+  case Side of
     left when PosX > ?GRID_LIMIT ->
       undefined;
     left ->
@@ -91,7 +159,8 @@ next_position(Mech) ->
 
 
 run_turns(Mechs, Turns) ->
-  case do_movement(Mechs) of
+  MovedMechs = do_movement(Mechs),
+  case do_attack(MovedMechs) of
     Mechs ->
       {Mechs, Turns};
     NewMechs ->
