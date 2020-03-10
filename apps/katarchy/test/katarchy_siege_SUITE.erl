@@ -11,10 +11,12 @@
          attack_facing/1,
          attack_not_facing/1,
          attack_not_same_side/1,
+         attack_outside/1,
          attack_power/1,
          attack_power_overkill/1,
          attack_power_ranged/1,
          attack_ranged/1,
+         attack_ranged_blocked/1,
          attack_ranged_double_ko/1,
          attack_ranged_no_target/1,
          attack_ranged_not_same_side/1,
@@ -47,10 +49,12 @@ all() ->
    attack_facing,
    attack_not_facing,
    attack_not_same_side,
+   attack_outside,
    attack_power,
    attack_power_overkill,
    attack_power_ranged,
    attack_ranged,
+   attack_ranged_blocked,
    attack_ranged_double_ko,
    attack_ranged_no_target,
    attack_ranged_not_same_side,
@@ -103,6 +107,11 @@ attack_not_same_side(_Config) ->
   {[Mech1, Mech2], _} = katarchy_siege:run([Mech1, Mech2]),
   {1,0} = Mech2#mech.position.
 
+%% Test that one mech doesn't go out of bounds when attacking.
+attack_outside(_Config) ->
+  Mech = #mech{position = {0,0}, side = right, attack_power = 1},
+  {[Mech], _} = katarchy_siege:run([Mech]).
+
 %% Test that the attack power allows to damage a rival faster.
 attack_power(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 5},
@@ -133,6 +142,14 @@ attack_ranged(_Config) ->
   MechR = #mech{position = {4,0}, side = right},
   {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
   undefined = MechR2#mech.position.
+
+%% Test that one mech can block the line of attack.
+attack_ranged_blocked(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
+  MechR = #mech{position = {4,0}, side = right},
+  Obstacle = #mech{position = {2,0}},
+  Mechs = [MechL, MechR, Obstacle],
+  {Mechs, _} = katarchy_siege:run(Mechs).
 
 %% Test that two ranged mechs can kill each other.
 attack_ranged_double_ko(_Config) ->

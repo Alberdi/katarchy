@@ -71,13 +71,15 @@ range_attack(_Mech, undefined, Mechs) ->
   Mechs;
 range_attack(Mech, TargetPos, Mechs) ->
   case lists:keyfind(TargetPos, 2, Mechs) of
+    false ->
+      NextPosition = next_position(TargetPos, Mech#mech.side),
+      range_attack(Mech, NextPosition, Mechs);
     TargetMech when TargetMech#mech.side =/= Mech#mech.side ->
       NewHitPoints = TargetMech#mech.hit_points - Mech#mech.attack_power,
       NewMech = TargetMech#mech{hit_points = NewHitPoints},
       lists:keyreplace(TargetPos, 2, Mechs, NewMech);
     _ ->
-      NextPosition = next_position(TargetPos, Mech#mech.side),
-      range_attack(Mech, NextPosition, Mechs)
+      Mechs
   end.
 
 
