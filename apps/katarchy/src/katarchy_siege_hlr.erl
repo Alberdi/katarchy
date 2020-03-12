@@ -16,7 +16,6 @@ init(#{method := <<"POST">>} = Req0, State) ->
   {FinalState, Turns} = katarchy_siege:run(Mechs),
   Output = #{<<"finalState">> => [mech_json(Mech) || Mech <- FinalState],
              <<"turns">> => turns_json(Turns)},
-  io:format("Output: ~p~n", [Output]),
   Req2 = cowboy_req:reply(200,
                           #{<<"content-type">> => <<"application/json">>,
                             <<"Access-Control-Allow-Origin">> => <<"*">>},
@@ -73,4 +72,4 @@ json_to_mech([{<<"skills">>, V}|Fields], Mech) when is_list(V) ->
   json_to_mech(Fields, Mech#mech{skills = Skills});
 json_to_mech([_|Fields], Mech) ->
   json_to_mech(Fields, Mech).
-  
+
