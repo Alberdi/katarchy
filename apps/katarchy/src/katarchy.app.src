@@ -1,15 +1,13 @@
 {application, katarchy,
- [{description, "An OTP application"},
+  [{description, "Kata with the archy"},
   {vsn, "0.1.0"},
   {registered, []},
   {mod, {katarchy_app, []}},
   {applications,
-   [kernel,
-    stdlib
-   ]},
+    [kernel, stdlib, runtime_tools, cowboy, jiffy]},
   {env,[]},
   {modules, []},
 
   {licenses, ["Apache 2.0"]},
   {links, []}
- ]}.
+  ]}.

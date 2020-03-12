@@ -12,9 +12,7 @@
 run(Mechs) ->
   validate_setup(Mechs),
   {NewMechs, Turns} = run_turns(Mechs, []),
-  Return = {NewMechs, lists:reverse(Turns)},
-  ct:log("katarchy_siege:run/1 returned ~p~n", [Return]),
-  Return.
+  {NewMechs, lists:reverse(Turns)}.
 
 %%--------------------------------------------------------------------
 %% Internal functions

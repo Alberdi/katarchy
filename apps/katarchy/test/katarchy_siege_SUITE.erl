@@ -21,6 +21,7 @@
          attack_ranged_no_target/1,
          attack_ranged_not_same_side/1,
          attack_ranged_right/1,
+         mech_id_remains/1,
          movement_double/1,
          movement_faster_first/1,
          movement_jump/1,
@@ -59,6 +60,7 @@ all() ->
    attack_ranged_no_target,
    attack_ranged_not_same_side,
    attack_ranged_right,
+   mech_id_remains,
    movement_double,
    movement_faster_first,
    movement_jump,
@@ -179,6 +181,12 @@ attack_ranged_right(_Config) ->
                 side = right},
   {[MechL2, MechR], _} = katarchy_siege:run([MechL, MechR]),
   undefined = MechL2#mech.position.
+
+%% Test that mechs have one id that remains with them.
+mech_id_remains(_Config) ->
+  Mech = #mech{position = {0,0}, id = <<"alpha">>, speed = 1},
+  {[Mech2], _} = katarchy_siege:run([Mech]),
+  <<"alpha">> = Mech2#mech.id.
 
 %% Test that one mech can move double.
 movement_double(_Config) ->
