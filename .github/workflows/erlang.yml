@@ -1,0 +1,29 @@
+name: Erlang CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: erlang:22.0.7
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Compile
+      run: rebar3 compile
+    - name: Run tests
+      run: rebar3 ct --cover --config apps/katarchy/test/conf/test.conf --readable true
+    - name: Run cover
+      run: rebar3 cover -m 100 -v
+    - name: Run xref
+      run: rebar3 xref
+    - name: Run dyalizer
+      run: rebar3 dialyzer
