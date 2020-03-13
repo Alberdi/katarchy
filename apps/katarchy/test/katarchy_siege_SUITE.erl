@@ -27,6 +27,7 @@
          movement_jump/1,
          movement_jump_blocked/1,
          movement_jump_limit/1,
+         movement_jump_pairs/1,
          movement_jump_speed/1,
          movement_limit_left/1,
          movement_limit_right/1,
@@ -66,6 +67,7 @@ all() ->
    movement_jump,
    movement_jump_blocked,
    movement_jump_limit,
+   movement_jump_pairs,
    movement_jump_speed,
    movement_limit_left,
    movement_limit_right,
@@ -223,6 +225,14 @@ movement_jump_limit(_Config) ->
   Obstacle = #mech{position = {0,0}},
   Mech = #mech{position = {1,0}, speed = 1, skills = [jump], side = right},
   {[Mech, Obstacle], _} = katarchy_siege:run([Mech, Obstacle]).
+
+%% Test two jumping mechs together reaching the end.
+movement_jump_pairs(_Config) ->
+  Mech1 = #mech{position = {0,0}, speed = 1, skills = [jump]},
+  Mech2 = #mech{position = {1,0}, speed = 1, skills = [jump]},
+  {[MechX, MechY], _} = katarchy_siege:run([Mech1, Mech2]),
+  undefined = MechX#mech.position,
+  undefined = MechY#mech.position.
 
 %% Test that jumping only consumes one movement.
 movement_jump_speed(_Config) ->

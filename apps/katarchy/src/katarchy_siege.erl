@@ -125,7 +125,7 @@ move(_Mech, 0, Mechs) ->
   {complete, Mechs};
 move(Mech, Speed, Mechs) ->
   TargetPos = next_position(Mech),
-  case lists:keymember(TargetPos, 2, Mechs) of
+  case TargetPos =/= undefined andalso lists:keymember(TargetPos, 2, Mechs) of
     true ->
       case lists:member(jump, Mech#mech.skills) of
         true ->
