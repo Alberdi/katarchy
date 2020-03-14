@@ -8,6 +8,7 @@
 
 %% Test cases
 -export([attack_double_ko/1,
+         attack_double_ko_slow/1,
          attack_facing/1,
          attack_not_facing/1,
          attack_not_same_side/1,
@@ -21,6 +22,7 @@
          attack_ranged_no_target/1,
          attack_ranged_not_same_side/1,
          attack_ranged_right/1,
+         attack_slow/1,
          mech_id_remains/1,
          movement_double/1,
          movement_faster_first/1,
@@ -33,6 +35,9 @@
          movement_limit_right/1,
          movement_not_blocking/1,
          movement_obstacle/1,
+         movement_slow/1,
+         movement_slow_last/1,
+         movement_slower_last/1,
          movement_stop/1,
          movement_turns/1,
          movement_turns_track/1,
@@ -48,6 +53,7 @@ suite() ->
 
 all() ->
   [attack_double_ko,
+   attack_double_ko_slow,
    attack_facing,
    attack_not_facing,
    attack_not_same_side,
@@ -61,6 +67,7 @@ all() ->
    attack_ranged_no_target,
    attack_ranged_not_same_side,
    attack_ranged_right,
+   attack_slow,
    mech_id_remains,
    movement_double,
    movement_faster_first,
@@ -73,6 +80,9 @@ all() ->
    movement_limit_right,
    movement_not_blocking,
    movement_obstacle,
+   movement_slow,
+   movement_slow_last,
+   movement_slower_last,
    movement_stop,
    movement_turns,
    movement_turns_track,
@@ -88,6 +98,14 @@ attack_double_ko(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1},
   MechR = #mech{position = {1,0}, attack_power = 1, side = right},
   {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  undefined = MechL2#mech.position,
+  undefined = MechR2#mech.position.
+
+%% Test that two mechs can ko each other even if one is slower
+attack_double_ko_slow(_Config) ->
+  MechR = #mech{position = {1,0}, attack_power = 1, side = right},
+  MechL = #mech{position = {0,0}, attack_power = 2, skills = [{slow, 2, 2}]},
+  {[MechR2, MechL2], _} = katarchy_siege:run([MechR, MechL]),
   undefined = MechL2#mech.position,
   undefined = MechR2#mech.position.
 
@@ -184,6 +202,14 @@ attack_ranged_right(_Config) ->
   {[MechL2, MechR], _} = katarchy_siege:run([MechL, MechR]),
   undefined = MechL2#mech.position.
 
+%% Test that an attack is delayed for "slow" mechs.
+attack_slow(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 1, skills = [{slow, 3, 3}]},
+  MechR = #mech{position = {1,0}, hit_points = 1, side = right},
+  {[_, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
+  5 = length(Turns), % 2 more turns for hit, 3 turns for recharging
+  undefined = MechR2#mech.position.
+
 %% Test that mechs have one id that remains with them.
 mech_id_remains(_Config) ->
   Mech = #mech{position = {0,0}, id = <<"alpha">>, speed = 1},
@@ -273,6 +299,31 @@ movement_obstacle(_Config) ->
   Obstacle = #mech{position = {5,0}},
   {[Mech2, Obstacle], _} = katarchy_siege:run([Mech, Obstacle]),
   {4,0} = Mech2#mech.position.
+
+%% Test that one mech can move slowly.
+movement_slow(_Config) ->
+  Mech = #mech{position = {1,0}, speed = 1, side = right,
+               skills = [{slow, 3,3}]},
+  {[MechF], Turns} = katarchy_siege:run([Mech]),
+  8 = length(Turns), % 2 more turns in {1,0}, 3 in {0,0}, 3 in undefined.
+  undefined = MechF#mech.position.
+
+%% Test that the slow mech moves last.
+movement_slow_last(_Config) ->
+  MechL = #mech{position = {0,0}, speed = 1, skills = [{slow, 4, 1}]},
+  MechR = #mech{position = {2,0}, speed = 1, side = right},
+  {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {0,0} = MechL2#mech.position,
+  {1,0} = MechR2#mech.position.
+
+%% Test that the slower mech moves last.
+movement_slower_last(_Config) ->
+  MechR = #mech{position = {2,0}, speed = 1, skills = [{slow, 2, 1}],
+                side = right},
+  MechL = #mech{position = {0,0}, speed = 1, skills = [{slow, 4, 1}]},
+  {[MechR2, MechL2], _} = katarchy_siege:run([MechR, MechL]),
+  {1,0} = MechR2#mech.position,
+  {0,0} = MechL2#mech.position.
 
 %% Test that two incoming mechs stop before running over each other.
 movement_stop(_Config) ->

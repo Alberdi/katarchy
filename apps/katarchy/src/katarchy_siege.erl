@@ -17,12 +17,43 @@ run(Mechs) ->
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
+can_attack(Mech) ->
+  not is_slowed(Mech) andalso
+  Mech#mech.position =/= undefined andalso
+  Mech#mech.attack_power > 0.
+
+
+can_move(Mech) ->
+  not is_slowed(Mech) andalso
+  Mech#mech.position =/= undefined andalso
+  Mech#mech.speed > 0.
+
+
+is_faster(M1, M2) ->
+  case [lists:keyfind(slow, 1, M#mech.skills) || M <- [M1,M2]] of
+    [false, {slow, _, _}] ->
+      true;
+    [{slow, _, _}, false] ->
+      false;
+    [{slow, MaxX, _}, {slow, MaxY, _}] ->
+      MaxX =< MaxY;
+    [false, false] ->
+      M1#mech.speed >= M2#mech.speed
+  end.
+
+
+is_slowed(Mech) ->
+  case lists:keyfind(slow, 1, Mech#mech.skills) of
+    {slow, _Max, I} when I =/= 0 ->
+      true;
+    _ ->
+      false
+  end.
+
+
 do_attack(Mechs) ->
-  AttackingFun = fun(X) -> X#mech.position =/= undefined andalso
-                           X#mech.attack_power > 0 end,
-  AttackingMechs = lists:filter(AttackingFun, Mechs),
-  FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
-  FasterMechs = lists:sort(FasterFirst, AttackingMechs),
+  AttackingMechs = lists:filter(fun can_attack/1, Mechs),
+  FasterMechs = lists:sort(fun is_faster/2, AttackingMechs),
   NewMechs = do_attack(FasterMechs, Mechs),
   NewMechs2 = do_attack_ranged(NewMechs),
   lists:map(fun incapacitate_if_needed/1, NewMechs2).
@@ -49,11 +80,10 @@ do_attack([Mech|LeftToAttack], Mechs) ->
 
 
 do_attack_ranged(Mechs) ->
-  AttackingFun = fun(X) -> X#mech.position =/= undefined andalso
-                           lists:member(ranged, X#mech.skills) end,
+  AttackingFun = fun(X) -> lists:member(ranged, X#mech.skills)
+                           andalso can_attack(X) end,
   AttackingMechs = lists:filter(AttackingFun, Mechs),
-  FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
-  FasterMechs = lists:sort(FasterFirst, AttackingMechs),
+  FasterMechs = lists:sort(fun is_faster/2, AttackingMechs),
   NewMechs = do_attack_ranged(FasterMechs, Mechs),
   lists:map(fun incapacitate_if_needed/1, NewMechs).
 
@@ -82,12 +112,10 @@ range_attack(Mech, TargetPos, Mechs) ->
 
 
 do_movement(Mechs) ->
-  FasterFirst = fun(X,Y) -> X#mech.speed > Y#mech.speed end,
-  FasterMechs = lists:sort(FasterFirst, Mechs),
+  MovingMechs = lists:filter(fun can_move/1, Mechs),
+  FasterMechs = lists:sort(fun is_faster/2, MovingMechs),
   do_movement(FasterMechs, Mechs, {[],[]}).
 
-do_movement([#mech{position = undefined}|LeftToMove], AllMechs, Passes) ->
-  do_movement(LeftToMove, AllMechs, Passes);
 do_movement([Mech|LeftToMove], AllMechs, {CurrentPass, PrevPass} = Passes) ->
   case move(Mech, Mech#mech.speed, AllMechs) of
     {complete, NewMechs} ->
@@ -160,13 +188,30 @@ next_position({PosX, PosY}, Side) ->
   end.
 
 
-run_turns(Mechs, Turns) ->
+run_turns(InitialMechs, Turns) ->
+  Mechs = [slow_tick(Mech) || Mech <- InitialMechs],
   MovedMechs = do_movement(Mechs),
-  case do_attack(MovedMechs) of
-    Mechs ->
-      {Mechs, Turns};
-    NewMechs ->
-      run_turns(NewMechs, [NewMechs|Turns])
+  FinalMechs = do_attack(MovedMechs),
+  case lists:member(FinalMechs, Turns) orelse FinalMechs =:= InitialMechs of
+    true ->
+      {FinalMechs, Turns};
+    false ->
+      run_turns(FinalMechs, [FinalMechs|Turns])
+  end.
+
+
+slow_tick(Mech) ->
+  case lists:keyfind(slow, 1, Mech#mech.skills) of
+    {slow, Max, I} when I > 0 ->
+      NewSkills = lists:keyreplace(slow, 1, Mech#mech.skills,
+                                   {slow, Max, I-1}),
+      Mech#mech{skills = NewSkills};
+    {slow, Max, I} when I =:= 0 ->
+      NewSkills = lists:keyreplace(slow, 1, Mech#mech.skills,
+                                   {slow, Max, Max-1}),
+      Mech#mech{skills = NewSkills};
+    _ ->
+      Mech
   end.
 
 
