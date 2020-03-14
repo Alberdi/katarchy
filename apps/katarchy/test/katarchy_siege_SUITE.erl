@@ -13,6 +13,11 @@
          attack_not_facing/1,
          attack_not_same_side/1,
          attack_outside/1,
+         attack_perforating_melee/1,
+         attack_perforating_melee_friend/1,
+         attack_perforating_melee_limit/1,
+         attack_perforating_ranged/1,
+         attack_perforating_ranged_friend/1,
          attack_power/1,
          attack_power_overkill/1,
          attack_power_ranged/1,
@@ -58,6 +63,11 @@ all() ->
    attack_not_facing,
    attack_not_same_side,
    attack_outside,
+   attack_perforating_melee,
+   attack_perforating_melee_friend,
+   attack_perforating_melee_limit,
+   attack_perforating_ranged,
+   attack_perforating_ranged_friend,
    attack_power,
    attack_power_overkill,
    attack_power_ranged,
@@ -133,6 +143,61 @@ attack_not_same_side(_Config) ->
 attack_outside(_Config) ->
   Mech = #mech{position = {0,0}, side = right, attack_power = 1},
   {[Mech], _} = katarchy_siege:run([Mech]).
+
+%% Tests that a perforating attack can damage multiple adjacent enemies.
+attack_perforating_melee(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10, skills = [perforating]},
+  MechR1 = #mech{position = {1,0}, side = right},
+  MechR2 = #mech{position = {2,0}, side = right},
+  {[MechL, MechR11, MechR22], Turns} =
+    katarchy_siege:run([MechL, MechR1, MechR2]),
+  undefined = MechR11#mech.position,
+  undefined = MechR22#mech.position,
+  1 = length(Turns).
+
+%% Tests that a perforating attack can also damage allies.
+attack_perforating_melee_friend(_Config) ->
+  MechL1 = #mech{position = {0,0}, attack_power = 10, skills = [perforating]},
+  MechR = #mech{position = {1,0}, side = right},
+  MechL2 = #mech{position = {2,0}},
+  {[MechL1, MechR2, MechL22], Turns} =
+    katarchy_siege:run([MechL1, MechR, MechL2]),
+  undefined = MechR2#mech.position,
+  undefined = MechL22#mech.position,
+  1 = length(Turns).
+
+%% Tests that a perforating attack doesn't jump over empty spaces.
+attack_perforating_melee_limit(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10, skills = [perforating]},
+  MechR1 = #mech{position = {1,0}, side = right},
+  MechR2 = #mech{position = {2,0}, side = right},
+  MechR4 = #mech{position = {4,0}, side = right},
+  {[MechL, _, _, MechR4], _} =
+    katarchy_siege:run([MechL, MechR1, MechR2, MechR4]).
+
+%% Tests that a ranged attack can damage multiple enemies on a lane.
+attack_perforating_ranged(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, perforating]},
+  MechR1 = #mech{position = {2,0}, side = right},
+  MechR2 = #mech{position = {4,0}, side = right},
+  {[MechL, MechR11, MechR22], Turns} =
+    katarchy_siege:run([MechL, MechR1, MechR2]),
+  undefined = MechR11#mech.position,
+  undefined = MechR22#mech.position,
+  1 = length(Turns).
+
+%% Tests that a ranged attack also damages an ally behind an enemy.
+attack_perforating_ranged_friend(_Config) ->
+  MechL1 = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, perforating]},
+  MechR = #mech{position = {2,0}, side = right},
+  MechL2 = #mech{position = {4,0}},
+  {[MechL1, MechR2, MechL22], Turns} =
+    katarchy_siege:run([MechL1, MechR, MechL2]),
+  undefined = MechR2#mech.position,
+  undefined = MechL22#mech.position,
+  1 = length(Turns).
 
 %% Test that the attack power allows to damage a rival faster.
 attack_power(_Config) ->

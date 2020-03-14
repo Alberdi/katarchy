@@ -77,6 +77,7 @@ siege_mech_skills(_Config) ->
   Skills = proplists:get_value(<<"skills">>, Mech),
   SkillTypes = [proplists:get_value(<<"type">>, S) || {S} <- Skills],
   true = lists:member(<<"jump">>, SkillTypes),
+  true = lists:member(<<"perforating">>, SkillTypes),
   true = lists:member(<<"ranged">>, SkillTypes).
 
 %% Test that a simple mech can be sent and returned.

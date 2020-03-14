@@ -68,14 +68,29 @@ do_attack([Mech|LeftToAttack], Mechs) ->
     NextPosition ->
       case lists:keyfind(NextPosition, 2, Mechs) of
         TargetMech when TargetMech#mech.side =/= Mech#mech.side ->
-          NewHitPoints = TargetMech#mech.hit_points - Mech#mech.attack_power,
-          NewMech = TargetMech#mech{hit_points = NewHitPoints},
-          NewMechs = lists:keyreplace(TargetMech#mech.position, 2,
-                                      Mechs, NewMech),
+          NewMechs = do_attack(Mech, TargetMech, Mechs),
           do_attack(LeftToAttack, NewMechs);
         _ ->
           do_attack(LeftToAttack, Mechs)
       end
+  end.
+
+
+do_attack(Attacker, Target, Mechs) ->
+  NewHitPoints = Target#mech.hit_points - Attacker#mech.attack_power,
+  NewMech = Target#mech{hit_points = NewHitPoints},
+  NewMechs = lists:keyreplace(Target#mech.position, 2, Mechs, NewMech),
+  case lists:member(perforating, Attacker#mech.skills) of
+    true ->
+      NextPosition = next_position(Target#mech.position, Attacker#mech.side),
+      case lists:keyfind(NextPosition, 2, Mechs) of
+        false ->
+          NewMechs;
+        NewTarget ->
+          do_attack(Attacker, NewTarget, NewMechs)
+      end;
+    false ->
+      NewMechs
   end.
 
 
@@ -91,21 +106,29 @@ do_attack_ranged([], Mechs) ->
   Mechs;
 do_attack_ranged([Mech|LeftToAttack], Mechs) ->
   NextPosition = next_position(Mech),
-  NewMechs = range_attack(Mech, NextPosition, Mechs),
+  NewMechs = range_attack(Mech, NextPosition, Mechs, false),
   do_attack_ranged(LeftToAttack, NewMechs).
 
 
-range_attack(_Mech, undefined, Mechs) ->
+range_attack(_Mech, undefined, Mechs, _) ->
   Mechs;
-range_attack(Mech, TargetPos, Mechs) ->
+range_attack(Mech, TargetPos, Mechs, DidPerforate) ->
   case lists:keyfind(TargetPos, 2, Mechs) of
     false ->
       NextPosition = next_position(TargetPos, Mech#mech.side),
-      range_attack(Mech, NextPosition, Mechs);
-    TargetMech when TargetMech#mech.side =/= Mech#mech.side ->
+      range_attack(Mech, NextPosition, Mechs, DidPerforate);
+    TargetMech when TargetMech#mech.side =/= Mech#mech.side
+                    orelse DidPerforate ->
       NewHitPoints = TargetMech#mech.hit_points - Mech#mech.attack_power,
       NewMech = TargetMech#mech{hit_points = NewHitPoints},
-      lists:keyreplace(TargetPos, 2, Mechs, NewMech);
+      NewMechs = lists:keyreplace(TargetPos, 2, Mechs, NewMech),
+      case lists:member(perforating, Mech#mech.skills) of
+        true ->
+          NextPosition = next_position(TargetPos, Mech#mech.side),
+          range_attack(Mech, NextPosition, NewMechs, true);
+        false ->
+          NewMechs
+      end;
     _ ->
       Mechs
   end.
