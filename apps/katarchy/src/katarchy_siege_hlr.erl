@@ -36,11 +36,15 @@ turns_json(Turns) ->
 
 zip([], []) ->
   [];
-zip([_ | T], [undefined | T2]) ->
+zip([_|T], [undefined|T2]) ->
   zip(T, T2);
-zip([position | T], [{X,Y} | T2]) ->
+zip([skills|T], [V|T2]) ->
+  Skills = lists:map(fun({Atom, X, _}) -> {[{type, Atom}, {value, X}]};
+                        (Atom) -> {[{type, Atom}]} end, V),
+  [{skills, Skills} | zip(T, T2)];
+zip([position|T], [{X,Y}|T2]) ->
   [{position, {[{x,X}, {y,Y}]}} | zip(T, T2)];
-zip([H | T], [H2 | T2]) ->
+zip([H|T], [H2|T2]) ->
   [{atom_to_binary(H, utf8), H2} | zip(T, T2)].
 
 
@@ -66,9 +70,12 @@ json_to_mech([{<<"side">>, <<"right">>}|Fields], Mech) ->
 json_to_mech([{<<"speed">>, V}|Fields], Mech) when is_integer(V) ->
   json_to_mech(Fields, Mech#mech{speed = V});
 json_to_mech([{<<"skills">>, V}|Fields], Mech) when is_list(V) ->
-  Skills = lists:filtermap(fun(<<"jump">>) -> {true, jump};
-                              (<<"ranged">>) -> {true, ranged};
-                              (_) -> false end, V),
+  RawSkills = [{proplists:get_value(<<"type">>, Skill),
+                proplists:get_value(<<"value">>, Skill)} || {Skill} <- V],
+  Skills = lists:filtermap(fun({<<"jump">>, _}) -> {true, jump};
+                              ({<<"ranged">>, _}) -> {true, ranged};
+                              ({<<"slow">>, I}) -> {true, {slow, I, I}};
+                              (_) -> false end, RawSkills),
   json_to_mech(Fields, Mech#mech{skills = Skills});
 json_to_mech([_|Fields], Mech) ->
   json_to_mech(Fields, Mech).
