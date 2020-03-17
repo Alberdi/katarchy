@@ -17,6 +17,22 @@ run(Mechs) ->
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
+adjacent_mechs(Position, Mechs) ->
+  lists:filtermap(fun(Side) ->
+                      case next_position(Position, Side) of
+                        undefined ->
+                          false;
+                        Pos ->
+                          case lists:keyfind(Pos, 2, Mechs) of
+                            false ->
+                              false;
+                            Mech ->
+                              {true, Mech}
+                          end
+                      end
+                  end, [left, right, up, down]).
+
+
 can_attack(Mech) ->
   not is_slowed(Mech) andalso
   Mech#mech.position =/= undefined andalso
@@ -27,6 +43,27 @@ can_move(Mech) ->
   not is_slowed(Mech) andalso
   Mech#mech.position =/= undefined andalso
   Mech#mech.speed > 0.
+
+
+damage(Damage, Mech, Mechs) ->
+  NewHitPoints = Mech#mech.hit_points - Damage,
+  NewMech = Mech#mech{hit_points = NewHitPoints},
+  NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
+  explode_if_killed(NewMech, NewMechs).
+
+
+explode_if_killed(Mech, Mechs) ->
+  case {lists:keyfind(explosive, 1, Mech#mech.skills), Mech#mech.hit_points} of
+    {{explosive, Value}, HP} when Value > 0 andalso HP =< 0 ->
+      NewSkills = lists:keyreplace(explosive, 1, Mech#mech.skills,
+                                   {explosive, 0}),
+      NewMech = Mech#mech{skills = NewSkills},
+      NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
+      lists:foldl(fun(X, MechsAcc) -> damage(Value, X, MechsAcc) end,
+                  NewMechs, adjacent_mechs(NewMech#mech.position, NewMechs));
+    _ ->
+      Mechs
+  end.
 
 
 is_faster(M1, M2) ->
@@ -77,13 +114,11 @@ do_attack([Mech|LeftToAttack], Mechs) ->
 
 
 do_attack(Attacker, Target, Mechs) ->
-  NewHitPoints = Target#mech.hit_points - Attacker#mech.attack_power,
-  NewMech = Target#mech{hit_points = NewHitPoints},
-  NewMechs = lists:keyreplace(Target#mech.position, 2, Mechs, NewMech),
+  NewMechs = damage(Attacker#mech.attack_power, Target, Mechs),
   case lists:member(perforating, Attacker#mech.skills) of
     true ->
       NextPosition = next_position(Target#mech.position, Attacker#mech.side),
-      case lists:keyfind(NextPosition, 2, Mechs) of
+      case lists:keyfind(NextPosition, 2, NewMechs) of
         false ->
           NewMechs;
         NewTarget ->
@@ -117,11 +152,8 @@ range_attack(Mech, TargetPos, Mechs, DidPerforate) ->
     false ->
       NextPosition = next_position(TargetPos, Mech#mech.side),
       range_attack(Mech, NextPosition, Mechs, DidPerforate);
-    TargetMech when TargetMech#mech.side =/= Mech#mech.side
-                    orelse DidPerforate ->
-      NewHitPoints = TargetMech#mech.hit_points - Mech#mech.attack_power,
-      NewMech = TargetMech#mech{hit_points = NewHitPoints},
-      NewMechs = lists:keyreplace(TargetPos, 2, Mechs, NewMech),
+    Target when Target#mech.side =/= Mech#mech.side orelse DidPerforate ->
+      NewMechs = damage(Mech#mech.attack_power, Target, Mechs),
       case lists:member(perforating, Mech#mech.skills) of
         true ->
           NextPosition = next_position(TargetPos, Mech#mech.side),
@@ -200,14 +232,22 @@ next_position(Mech) ->
 
 next_position({PosX, PosY}, Side) ->
   case Side of
-    left when PosX > ?GRID_LIMIT ->
+    left when PosX >= ?GRID_LIMIT-1 ->
       undefined;
     left ->
       {PosX + 1, PosY};
     right when PosX =:= 0 ->
       undefined;
     right ->
-      {PosX - 1, PosY}
+      {PosX - 1, PosY};
+    up when PosY =:= 0 ->
+      undefined;
+    up ->
+      {PosX, PosY - 1};
+    down when PosY >= ?GRID_LIMIT-1 ->
+      undefined;
+    down ->
+      {PosX, PosY + 1}
   end.
 
 

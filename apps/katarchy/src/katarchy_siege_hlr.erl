@@ -40,6 +40,7 @@ zip([_|T], [undefined|T2]) ->
   zip(T, T2);
 zip([skills|T], [V|T2]) ->
   Skills = lists:map(fun({Atom, X, _}) -> {[{type, Atom}, {value, X}]};
+                        ({Atom, X}) -> {[{type, Atom}, {value, X}]};
                         (Atom) -> {[{type, Atom}]} end, V),
   [{skills, Skills} | zip(T, T2)];
 zip([position|T], [{X,Y}|T2]) ->
@@ -75,6 +76,7 @@ json_to_mech([{<<"skills">>, V}|Fields], Mech) when is_list(V) ->
   Skills = lists:filtermap(fun({<<"jump">>, _}) -> {true, jump};
                               ({<<"perforating">>, _}) -> {true, perforating};
                               ({<<"ranged">>, _}) -> {true, ranged};
+                              ({<<"explosive">>, I}) -> {true, {explosive, I}};
                               ({<<"slow">>, I}) -> {true, {slow, I, I}};
                               (_) -> false end, RawSkills),
   json_to_mech(Fields, Mech#mech{skills = Skills});

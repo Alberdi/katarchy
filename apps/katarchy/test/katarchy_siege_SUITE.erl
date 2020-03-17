@@ -28,6 +28,10 @@
          attack_ranged_not_same_side/1,
          attack_ranged_right/1,
          attack_slow/1,
+         explosive/1,
+         explosive_area/1,
+         explosive_chain/1,
+         explosive_ranged/1,
          mech_id_remains/1,
          movement_double/1,
          movement_faster_first/1,
@@ -78,6 +82,10 @@ all() ->
    attack_ranged_not_same_side,
    attack_ranged_right,
    attack_slow,
+   explosive,
+   explosive_area,
+   explosive_chain,
+   explosive_ranged,
    mech_id_remains,
    movement_double,
    movement_faster_first,
@@ -274,6 +282,42 @@ attack_slow(_Config) ->
   {[_, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
   5 = length(Turns), % 2 more turns for hit, 3 turns for recharging
   undefined = MechR2#mech.position.
+
+%% Test that killing an explosive also damages yourself.
+explosive(_Config) ->
+  Mech = #mech{position = {1,0}, attack_power = 10, speed = 2, side = right},
+  Explosive = #mech{position = {0,0}, skills = [{explosive, 5}]},
+  {[Mech2, _], _} = katarchy_siege:run([Mech, Explosive]),
+  5 = Mech2#mech.hit_points.
+
+%% Test that killing an explosive also does collateral damage.
+explosive_area(_Config) ->
+  Mech = #mech{position = {2,1}, attack_power = 10, hit_points = 5,
+               speed = 2, side = right},
+  Explosive = #mech{position = {1,1}, skills = [{explosive, 5}]},
+  Collats = [#mech{position = {1,0}}, #mech{position = {0,1}},
+             #mech{position = {1,2}}],
+  {[_,_|Collats2], _} = katarchy_siege:run([Mech, Explosive | Collats]),
+  true = lists:all(fun(X) -> X#mech.hit_points == 5 end, Collats2).
+
+%% Test an explosive chain killing a everything on the map.
+explosive_chain(_Config) ->
+  Mechs = [#mech{position = {0,0}},
+           #mech{position = {0,1}, skills = [{explosive, 10}]},
+           #mech{position = {1,1}, skills = [{explosive, 10}]},
+           #mech{position = {2,1}, skills = [{explosive, 10}]},
+           #mech{position = {3,1}, side = right, attack_power = 10}],
+  {NewMechs, _} = katarchy_siege:run(Mechs),
+  true = lists:all(fun(X) -> undefined == X#mech.position end, NewMechs).
+
+%% Tests killing an explosive from far away.
+explosive_ranged(_Config) ->
+  Explosive = #mech{position = {0,9}, skills = [{explosive, 2}]},
+  Collat = #mech{position = {0,8}},
+  MechR = #mech{position = {4,9}, attack_power = 1,
+                side = right, skills = [ranged]},
+  {[_, Collat2, MechR], _} = katarchy_siege:run([Explosive, Collat, MechR]),
+  8 = Collat2#mech.hit_points.
 
 %% Test that mechs have one id that remains with them.
 mech_id_remains(_Config) ->

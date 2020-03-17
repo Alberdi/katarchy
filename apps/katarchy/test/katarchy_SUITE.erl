@@ -8,6 +8,7 @@
 
 %% Test cases
 -export([siege_mech_attack_power/1,
+         siege_mech_explosive/1,
          siege_mech_fake_fields/1,
          siege_mech_position_yx/1,
          siege_mech_side_right/1,
@@ -24,6 +25,7 @@ suite() ->
 
 all() ->
   [siege_mech_attack_power,
+   siege_mech_explosive,
    siege_mech_fake_fields,
    siege_mech_position_yx,
    siege_mech_side_right,
@@ -49,6 +51,14 @@ siege_mech_attack_power(_Config) ->
   {[MechJson], _} = post_siege(ct:get_config(json_mech_full)),
   {Mech} = jiffy:decode(MechJson),
   12 = proplists:get_value(<<"attack_power">>, Mech).
+
+%% Test that an explosive skill in a mech can be sent and returned.
+siege_mech_explosive(_Config) ->
+  {[MechJson], _} = post_siege(ct:get_config(json_mech_explosive)),
+  {Mech} = jiffy:decode(MechJson),
+  [{Skill}] = proplists:get_value(<<"skills">>, Mech),
+  <<"explosive">> = proplists:get_value(<<"type">>, Skill),
+  5 = proplists:get_value(<<"value">>, Skill).
 
 %% Test that a mech with fake fields can be sent and returned.
 siege_mech_fake_fields(_Config) ->
