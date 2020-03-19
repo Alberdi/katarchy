@@ -1,4 +1,4 @@
--module(katarchy_siege).
+-module(katarchy_raid).
 
 -include("katarchy_mech.hrl").
 

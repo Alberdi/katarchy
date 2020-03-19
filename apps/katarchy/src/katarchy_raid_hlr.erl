@@ -1,4 +1,4 @@
--module(katarchy_siege_hlr).
+-module(katarchy_raid_hlr).
 -behavior(cowboy_handler).
 
 -include("katarchy_mech.hrl").
@@ -13,7 +13,7 @@ init(#{method := <<"POST">>} = Req0, State) ->
   {ok, Data, Req} = cowboy_req:read_body(Req0),
   JsonMechs = jiffy:decode(Data),
   Mechs = json_to_mechs(JsonMechs),
-  {FinalState, Turns} = katarchy_siege:run(Mechs),
+  {FinalState, Turns} = katarchy_raid:run(Mechs),
   Output = #{<<"finalState">> => [mech_json(Mech) || Mech <- FinalState],
              <<"turns">> => turns_json(Turns)},
   Req2 = cowboy_req:reply(200,

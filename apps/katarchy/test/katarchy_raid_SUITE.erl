@@ -1,4 +1,4 @@
--module(katarchy_siege_SUITE).
+-module(katarchy_raid_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
 -include("katarchy_mech.hrl").
@@ -115,7 +115,7 @@ all() ->
 attack_double_ko(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1},
   MechR = #mech{position = {1,0}, attack_power = 1, side = right},
-  {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   undefined = MechL2#mech.position,
   undefined = MechR2#mech.position.
 
@@ -123,7 +123,7 @@ attack_double_ko(_Config) ->
 attack_double_ko_slow(_Config) ->
   MechR = #mech{position = {1,0}, attack_power = 1, side = right},
   MechL = #mech{position = {0,0}, attack_power = 2, skills = [{slow, 2, 2}]},
-  {[MechR2, MechL2], _} = katarchy_siege:run([MechR, MechL]),
+  {[MechR2, MechL2], _} = katarchy_raid:run([MechR, MechL]),
   undefined = MechL2#mech.position,
   undefined = MechR2#mech.position.
 
@@ -131,26 +131,26 @@ attack_double_ko_slow(_Config) ->
 attack_facing(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1},
   MechR = #mech{position = {1,0}, side = right},
-  {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   undefined = MechR2#mech.position.
 
 %% Test that one mech can't attack a rival that isn't facing.
 attack_not_facing(_Config) ->
   MechL = #mech{position = {1,0}, attack_power = 1},
   MechR = #mech{position = {0,0}, side = right},
-  {[MechL, MechR], _} = katarchy_siege:run([MechL, MechR]).
+  {[MechL, MechR], _} = katarchy_raid:run([MechL, MechR]).
 
 %% Test that one mech can't attack an ally.
 attack_not_same_side(_Config) ->
   Mech1 = #mech{position = {0,0}, attack_power = 1},
   Mech2 = #mech{position = {1,0}},
-  {[Mech1, Mech2], _} = katarchy_siege:run([Mech1, Mech2]),
+  {[Mech1, Mech2], _} = katarchy_raid:run([Mech1, Mech2]),
   {1,0} = Mech2#mech.position.
 
 %% Test that one mech doesn't go out of bounds when attacking.
 attack_outside(_Config) ->
   Mech = #mech{position = {0,0}, side = right, attack_power = 1},
-  {[Mech], _} = katarchy_siege:run([Mech]).
+  {[Mech], _} = katarchy_raid:run([Mech]).
 
 %% Tests that a perforating attack can damage multiple adjacent enemies.
 attack_perforating_melee(_Config) ->
@@ -158,7 +158,7 @@ attack_perforating_melee(_Config) ->
   MechR1 = #mech{position = {1,0}, side = right},
   MechR2 = #mech{position = {2,0}, side = right},
   {[MechL, MechR11, MechR22], Turns} =
-    katarchy_siege:run([MechL, MechR1, MechR2]),
+    katarchy_raid:run([MechL, MechR1, MechR2]),
   undefined = MechR11#mech.position,
   undefined = MechR22#mech.position,
   1 = length(Turns).
@@ -169,7 +169,7 @@ attack_perforating_melee_friend(_Config) ->
   MechR = #mech{position = {1,0}, side = right},
   MechL2 = #mech{position = {2,0}},
   {[MechL1, MechR2, MechL22], Turns} =
-    katarchy_siege:run([MechL1, MechR, MechL2]),
+    katarchy_raid:run([MechL1, MechR, MechL2]),
   undefined = MechR2#mech.position,
   undefined = MechL22#mech.position,
   1 = length(Turns).
@@ -181,7 +181,7 @@ attack_perforating_melee_limit(_Config) ->
   MechR2 = #mech{position = {2,0}, side = right},
   MechR4 = #mech{position = {4,0}, side = right},
   {[MechL, _, _, MechR4], _} =
-    katarchy_siege:run([MechL, MechR1, MechR2, MechR4]).
+    katarchy_raid:run([MechL, MechR1, MechR2, MechR4]).
 
 %% Tests that a ranged attack can damage multiple enemies on a lane.
 attack_perforating_ranged(_Config) ->
@@ -190,7 +190,7 @@ attack_perforating_ranged(_Config) ->
   MechR1 = #mech{position = {2,0}, side = right},
   MechR2 = #mech{position = {4,0}, side = right},
   {[MechL, MechR11, MechR22], Turns} =
-    katarchy_siege:run([MechL, MechR1, MechR2]),
+    katarchy_raid:run([MechL, MechR1, MechR2]),
   undefined = MechR11#mech.position,
   undefined = MechR22#mech.position,
   1 = length(Turns).
@@ -202,7 +202,7 @@ attack_perforating_ranged_friend(_Config) ->
   MechR = #mech{position = {2,0}, side = right},
   MechL2 = #mech{position = {4,0}},
   {[MechL1, MechR2, MechL22], Turns} =
-    katarchy_siege:run([MechL1, MechR, MechL2]),
+    katarchy_raid:run([MechL1, MechR, MechL2]),
   undefined = MechR2#mech.position,
   undefined = MechL22#mech.position,
   1 = length(Turns).
@@ -211,7 +211,7 @@ attack_perforating_ranged_friend(_Config) ->
 attack_power(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 5},
   MechR = #mech{position = {1,0}, side = right},
-  {[MechL, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
+  {[MechL, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
   undefined = MechR2#mech.position,
   2 = length(Turns).
 
@@ -219,7 +219,7 @@ attack_power(_Config) ->
 attack_power_overkill(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 500},
   MechR = #mech{position = {1,0}, side = right},
-  {[MechL, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
+  {[MechL, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
   undefined = MechR2#mech.position,
   1 = length(Turns).
 
@@ -227,7 +227,7 @@ attack_power_overkill(_Config) ->
 attack_power_ranged(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 5, skills = [ranged]},
   MechR = #mech{position = {4,0}, side = right},
-  {[MechL, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
+  {[MechL, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
   undefined = MechR2#mech.position,
   2 = length(Turns).
 
@@ -235,7 +235,7 @@ attack_power_ranged(_Config) ->
 attack_ranged(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
   MechR = #mech{position = {4,0}, side = right},
-  {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   undefined = MechR2#mech.position.
 
 %% Test that one mech can block the line of attack.
@@ -244,14 +244,14 @@ attack_ranged_blocked(_Config) ->
   MechR = #mech{position = {4,0}, side = right},
   Obstacle = #mech{position = {2,0}},
   Mechs = [MechL, MechR, Obstacle],
-  {Mechs, _} = katarchy_siege:run(Mechs).
+  {Mechs, _} = katarchy_raid:run(Mechs).
 
 %% Test that two ranged mechs can kill each other.
 attack_ranged_double_ko(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
   MechR = #mech{position = {4,0}, attack_power = 1, skills = [ranged],
                 side = right},
-  {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   undefined = MechL2#mech.position,
   undefined = MechR2#mech.position.
 
@@ -259,27 +259,27 @@ attack_ranged_double_ko(_Config) ->
 attack_ranged_no_target(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
   MechR = #mech{position = {4,1}, side = right},
-  {[MechL, MechR], _} = katarchy_siege:run([MechL, MechR]).
+  {[MechL, MechR], _} = katarchy_raid:run([MechL, MechR]).
 
 %% Test that one mech can't attack a friend.
 attack_ranged_not_same_side(_Config) ->
   Mech1 = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
   Mech2 = #mech{position = {4,0}},
-  {[Mech1, Mech2], _} = katarchy_siege:run([Mech1, Mech2]).
+  {[Mech1, Mech2], _} = katarchy_raid:run([Mech1, Mech2]).
 
 %% Test that one right mech can attack to the left.
 attack_ranged_right(_Config) ->
   MechL = #mech{position = {0,0}},
   MechR = #mech{position = {4,0}, attack_power = 1, skills = [ranged],
                 side = right},
-  {[MechL2, MechR], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL2, MechR], _} = katarchy_raid:run([MechL, MechR]),
   undefined = MechL2#mech.position.
 
 %% Test that an attack is delayed for "slow" mechs.
 attack_slow(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1, skills = [{slow, 3, 3}]},
   MechR = #mech{position = {1,0}, hit_points = 1, side = right},
-  {[_, MechR2], Turns} = katarchy_siege:run([MechL, MechR]),
+  {[_, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
   5 = length(Turns), % 2 more turns for hit, 3 turns for recharging
   undefined = MechR2#mech.position.
 
@@ -287,7 +287,7 @@ attack_slow(_Config) ->
 explosive(_Config) ->
   Mech = #mech{position = {1,0}, attack_power = 10, speed = 2, side = right},
   Explosive = #mech{position = {0,0}, skills = [{explosive, 5}]},
-  {[Mech2, _], _} = katarchy_siege:run([Mech, Explosive]),
+  {[Mech2, _], _} = katarchy_raid:run([Mech, Explosive]),
   5 = Mech2#mech.hit_points.
 
 %% Test that killing an explosive also does collateral damage.
@@ -297,7 +297,7 @@ explosive_area(_Config) ->
   Explosive = #mech{position = {1,1}, skills = [{explosive, 5}]},
   Collats = [#mech{position = {1,0}}, #mech{position = {0,1}},
              #mech{position = {1,2}}],
-  {[_,_|Collats2], _} = katarchy_siege:run([Mech, Explosive | Collats]),
+  {[_,_|Collats2], _} = katarchy_raid:run([Mech, Explosive | Collats]),
   true = lists:all(fun(X) -> X#mech.hit_points == 5 end, Collats2).
 
 %% Test an explosive chain killing a everything on the map.
@@ -307,7 +307,7 @@ explosive_chain(_Config) ->
            #mech{position = {1,1}, skills = [{explosive, 10}]},
            #mech{position = {2,1}, skills = [{explosive, 10}]},
            #mech{position = {3,1}, side = right, attack_power = 10}],
-  {NewMechs, _} = katarchy_siege:run(Mechs),
+  {NewMechs, _} = katarchy_raid:run(Mechs),
   true = lists:all(fun(X) -> undefined == X#mech.position end, NewMechs).
 
 %% Tests killing an explosive from far away.
@@ -316,20 +316,20 @@ explosive_ranged(_Config) ->
   Collat = #mech{position = {0,8}},
   MechR = #mech{position = {4,9}, attack_power = 1,
                 side = right, skills = [ranged]},
-  {[_, Collat2, MechR], _} = katarchy_siege:run([Explosive, Collat, MechR]),
+  {[_, Collat2, MechR], _} = katarchy_raid:run([Explosive, Collat, MechR]),
   8 = Collat2#mech.hit_points.
 
 %% Test that mechs have one id that remains with them.
 mech_id_remains(_Config) ->
   Mech = #mech{position = {0,0}, id = <<"alpha">>, speed = 1},
-  {[Mech2], _} = katarchy_siege:run([Mech]),
+  {[Mech2], _} = katarchy_raid:run([Mech]),
   <<"alpha">> = Mech2#mech.id.
 
 %% Test that one mech can move double.
 movement_double(_Config) ->
   MechL = #mech{position = {0,0}, speed = 2},
   MechR = #mech{position = {7,0}, speed = 1, side = right},
-  {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   {4,0} = MechL2#mech.position,
   {5,0} = MechR2#mech.position.
 
@@ -337,14 +337,14 @@ movement_double(_Config) ->
 movement_faster_first(_Config) ->
   MechL = #mech{position = {0,0}, speed = 1},
   MechR = #mech{position = {2,0}, speed = 2, side = right},
-  {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   {1,0} = MechR2#mech.position.
 
 %% Test that a jumping mech can jump over another.
 movement_jump(_Config) ->
   Mech = #mech{position = {0,0}, speed = 1, skills = [jump]},
   Obstacle = #mech{position = {1,0}},
-  {_, [[MechT1,Obstacle]|_]} = katarchy_siege:run([Mech, Obstacle]),
+  {_, [[MechT1,Obstacle]|_]} = katarchy_raid:run([Mech, Obstacle]),
   {2,0} = MechT1#mech.position.
 
 %% Test that a jumping mech can't jump over two mechs.
@@ -353,19 +353,19 @@ movement_jump_blocked(_Config) ->
   Obstacle1 = #mech{position = {1,0}},
   Obstacle2 = #mech{position = {2,0}},
   Mechs = [Mech, Obstacle1, Obstacle2],
-  {Mechs, _} = katarchy_siege:run(Mechs).
+  {Mechs, _} = katarchy_raid:run(Mechs).
 
 %% Test that a jumping mech can't jump over the last before the limit.
 movement_jump_limit(_Config) ->
   Obstacle = #mech{position = {0,0}},
   Mech = #mech{position = {1,0}, speed = 1, skills = [jump], side = right},
-  {[Mech, Obstacle], _} = katarchy_siege:run([Mech, Obstacle]).
+  {[Mech, Obstacle], _} = katarchy_raid:run([Mech, Obstacle]).
 
 %% Test two jumping mechs together reaching the end.
 movement_jump_pairs(_Config) ->
   Mech1 = #mech{position = {0,0}, speed = 1, skills = [jump]},
   Mech2 = #mech{position = {1,0}, speed = 1, skills = [jump]},
-  {[MechX, MechY], _} = katarchy_siege:run([Mech1, Mech2]),
+  {[MechX, MechY], _} = katarchy_raid:run([Mech1, Mech2]),
   undefined = MechX#mech.position,
   undefined = MechY#mech.position.
 
@@ -374,21 +374,21 @@ movement_jump_speed(_Config) ->
   Mech = #mech{position = {0,0}, speed = 2, skills = [jump]},
   Obstacle1 = #mech{position = {1,0}},
   Obstacle2 = #mech{position = {3,0}},
-  {_, [[MechT1|_]|_]} = katarchy_siege:run([Mech, Obstacle1, Obstacle2]),
+  {_, [[MechT1|_]|_]} = katarchy_raid:run([Mech, Obstacle1, Obstacle2]),
   {4,0} = MechT1#mech.position.
 
-%% Test that one left minion eventually escapes the siege.
+%% Test that one left minion eventually escapes the raid.
 movement_limit_left(_Config) ->
   MechL = #mech{position = {0,0}, speed = 1},
   MechR = #mech{position = {0,1}, side = right},
-  {[MechL2, MechR], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL2, MechR], _} = katarchy_raid:run([MechL, MechR]),
   undefined = MechL2#mech.position.
 
-%% Test that one right minion eventually escapes the siege.
+%% Test that one right minion eventually escapes the raid.
 movement_limit_right(_Config) ->
   MechL = #mech{position = {0,0}},
   MechR = #mech{position = {0,1}, speed = 1, side = right},
-  {[MechL, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   undefined = MechR2#mech.position.
 
 %% Test that a slower mech doesn't block a faster one.
@@ -397,7 +397,7 @@ movement_not_blocking(_Config) ->
   MechS = #mech{position = {1,0}, speed = 1},
   Obstacle = #mech{position = {3,0}},
   {[MechF2, MechS2, Obstacle], Turns} =
-    katarchy_siege:run([MechF, MechS, Obstacle]),
+    katarchy_raid:run([MechF, MechS, Obstacle]),
   {1,0} = MechF2#mech.position,
   {2,0} = MechS2#mech.position,
   1 = length(Turns).
@@ -406,14 +406,14 @@ movement_not_blocking(_Config) ->
 movement_obstacle(_Config) ->
   Mech = #mech{position = {0,0}, speed = 1},
   Obstacle = #mech{position = {5,0}},
-  {[Mech2, Obstacle], _} = katarchy_siege:run([Mech, Obstacle]),
+  {[Mech2, Obstacle], _} = katarchy_raid:run([Mech, Obstacle]),
   {4,0} = Mech2#mech.position.
 
 %% Test that one mech can move slowly.
 movement_slow(_Config) ->
   Mech = #mech{position = {1,0}, speed = 1, side = right,
                skills = [{slow, 3,3}]},
-  {[MechF], Turns} = katarchy_siege:run([Mech]),
+  {[MechF], Turns} = katarchy_raid:run([Mech]),
   8 = length(Turns), % 2 more turns in {1,0}, 3 in {0,0}, 3 in undefined.
   undefined = MechF#mech.position.
 
@@ -421,7 +421,7 @@ movement_slow(_Config) ->
 movement_slow_last(_Config) ->
   MechL = #mech{position = {0,0}, speed = 1, skills = [{slow, 4, 1}]},
   MechR = #mech{position = {2,0}, speed = 1, side = right},
-  {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   {0,0} = MechL2#mech.position,
   {1,0} = MechR2#mech.position.
 
@@ -430,7 +430,7 @@ movement_slower_last(_Config) ->
   MechR = #mech{position = {2,0}, speed = 1, skills = [{slow, 2, 1}],
                 side = right},
   MechL = #mech{position = {0,0}, speed = 1, skills = [{slow, 4, 1}]},
-  {[MechR2, MechL2], _} = katarchy_siege:run([MechR, MechL]),
+  {[MechR2, MechL2], _} = katarchy_raid:run([MechR, MechL]),
   {1,0} = MechR2#mech.position,
   {0,0} = MechL2#mech.position.
 
@@ -438,7 +438,7 @@ movement_slower_last(_Config) ->
 movement_stop(_Config) ->
   MechL = #mech{position = {0,0}, speed = 1},
   MechR = #mech{position = {3,0}, speed = 1, side = right},
-  {[MechL2, MechR2], _} = katarchy_siege:run([MechL, MechR]),
+  {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   {1,0} = MechL2#mech.position,
   {2,0} = MechR2#mech.position.
 
@@ -446,14 +446,14 @@ movement_stop(_Config) ->
 movement_turns(_Config) ->
   Mech = #mech{position = {0,0}, speed = 2},
   Obstacle = #mech{position = {6,0}},
-  {_, Turns} = katarchy_siege:run([Mech, Obstacle]),
+  {_, Turns} = katarchy_raid:run([Mech, Obstacle]),
   3 = length(Turns).
 
 %% Test that each movement is properly tracked.
 movement_turns_track(_Config) ->
   Mech = #mech{position = {0,0}, speed = 1},
   Obstacle = #mech{position = {3,0}},
-  {_, [[Mech2|_],[Mech3|_]]} = katarchy_siege:run([Mech, Obstacle]),
+  {_, [[Mech2|_],[Mech3|_]]} = katarchy_raid:run([Mech, Obstacle]),
   {1,0} = Mech2#mech.position,
   {2,0} = Mech3#mech.position.
 
@@ -461,15 +461,15 @@ movement_turns_track(_Config) ->
 not_same_position(_Config) ->
   Mech = #mech{position = {0,0}},
   Mech2 = #mech{position = {0,0}},
-  invalid_setup = (catch katarchy_siege:run([Mech, Mech2])).
+  invalid_setup = (catch katarchy_raid:run([Mech, Mech2])).
 
 %% Test that a single mech always stays.
 single_mech(_Config) ->
   Mech = #mech{},
-  {[Mech], _} = katarchy_siege:run([Mech]).
+  {[Mech], _} = katarchy_raid:run([Mech]).
 
 %% Test that two sitting ducks don't do anything.
 sitting_ducks(_Config) ->
   Mech = #mech{},
-  {[Mech, Mech], _} = katarchy_siege:run([Mech, Mech]).
+  {[Mech, Mech], _} = katarchy_raid:run([Mech, Mech]).
 
