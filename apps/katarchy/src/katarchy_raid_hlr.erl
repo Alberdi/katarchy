@@ -74,6 +74,7 @@ json_to_mech([{<<"skills">>, V}|Fields], Mech) when is_list(V) ->
   RawSkills = [{proplists:get_value(<<"type">>, Skill),
                 proplists:get_value(<<"value">>, Skill)} || {Skill} <- V],
   Skills = lists:filtermap(fun({<<"jump">>, _}) -> {true, jump};
+                              ({<<"hidden">>, _}) -> {true, hidden};
                               ({<<"perforating">>, _}) -> {true, perforating};
                               ({<<"ranged">>, _}) -> {true, ranged};
                               ({<<"explosive">>, I}) -> {true, {explosive, I}};

@@ -1,20 +1,8 @@
 -module(katarchy_SUITE).
+-compile(export_all).
+-compile(nowarn_export_all).
 
 -include_lib("common_test/include/ct.hrl").
-
-%% Test server callbacks
--export([suite/0, all/0,
-        init_per_suite/1, end_per_suite/1]).
-
-%% Test cases
--export([raid_mech_attack_power/1,
-         raid_mech_explosive/1,
-         raid_mech_fake_fields/1,
-         raid_mech_position_yx/1,
-         raid_mech_side_right/1,
-         raid_mech_simple/1,
-         raid_mech_skills/1,
-         raid_mech_slow/1]).
 
 %%--------------------------------------------------------------------
 %% CT callbacks
@@ -26,6 +14,7 @@ suite() ->
 all() ->
   [raid_mech_attack_power,
    raid_mech_explosive,
+   raid_mech_hidden,
    raid_mech_fake_fields,
    raid_mech_position_yx,
    raid_mech_side_right,
@@ -59,6 +48,13 @@ raid_mech_explosive(_Config) ->
   [{Skill}] = proplists:get_value(<<"skills">>, Mech),
   <<"explosive">> = proplists:get_value(<<"type">>, Skill),
   5 = proplists:get_value(<<"value">>, Skill).
+
+%% Test that a hidden skill in a mech can be sent and returned.
+raid_mech_hidden(_Config) ->
+  {[MechJson], _} = post_raid(ct:get_config(json_mech_hidden)),
+  {Mech} = jiffy:decode(MechJson),
+  [{Skill}] = proplists:get_value(<<"skills">>, Mech),
+  <<"hidden">> = proplists:get_value(<<"type">>, Skill).
 
 %% Test that a mech with fake fields can be sent and returned.
 raid_mech_fake_fields(_Config) ->

@@ -1,58 +1,9 @@
 -module(katarchy_raid_SUITE).
+-compile(export_all).
+-compile(nowarn_export_all).
 
 -include_lib("common_test/include/ct.hrl").
 -include("katarchy_mech.hrl").
-
-%% Test server callbacks
--export([suite/0, all/0]).
-
-%% Test cases
--export([attack_double_ko/1,
-         attack_double_ko_slow/1,
-         attack_facing/1,
-         attack_not_facing/1,
-         attack_not_same_side/1,
-         attack_outside/1,
-         attack_perforating_melee/1,
-         attack_perforating_melee_friend/1,
-         attack_perforating_melee_limit/1,
-         attack_perforating_ranged/1,
-         attack_perforating_ranged_friend/1,
-         attack_power/1,
-         attack_power_overkill/1,
-         attack_power_ranged/1,
-         attack_ranged/1,
-         attack_ranged_blocked/1,
-         attack_ranged_double_ko/1,
-         attack_ranged_no_target/1,
-         attack_ranged_not_same_side/1,
-         attack_ranged_right/1,
-         attack_slow/1,
-         explosive/1,
-         explosive_area/1,
-         explosive_chain/1,
-         explosive_ranged/1,
-         mech_id_remains/1,
-         movement_double/1,
-         movement_faster_first/1,
-         movement_jump/1,
-         movement_jump_blocked/1,
-         movement_jump_limit/1,
-         movement_jump_pairs/1,
-         movement_jump_speed/1,
-         movement_limit_left/1,
-         movement_limit_right/1,
-         movement_not_blocking/1,
-         movement_obstacle/1,
-         movement_slow/1,
-         movement_slow_last/1,
-         movement_slower_last/1,
-         movement_stop/1,
-         movement_turns/1,
-         movement_turns_track/1,
-         not_same_position/1,
-         single_mech/1,
-         sitting_ducks/1]).
 
 %%--------------------------------------------------------------------
 %% CT callbacks
@@ -85,7 +36,22 @@ all() ->
    explosive,
    explosive_area,
    explosive_chain,
+   explosive_hidden,
    explosive_ranged,
+   hidden,
+   hidden_attacking_ranged,
+   hidden_jump,
+   hidden_perforating,
+   hidden_ranged,
+   hidden_ranged_ally_behind,
+   hidden_ranged_perforating,
+   hidden_ranged_transparent,
+   hidden_ranged_twice,
+   hidden_ranged_twice_transparent,
+   hidden_revealed_attacking,
+   hidden_revealed_bumped,
+   hidden_revealed_bumping,
+   hidden_revealed_slower,
    mech_id_remains,
    movement_double,
    movement_faster_first,
@@ -310,6 +276,14 @@ explosive_chain(_Config) ->
   {NewMechs, _} = katarchy_raid:run(Mechs),
   true = lists:all(fun(X) -> undefined == X#mech.position end, NewMechs).
 
+%% Test that killing an explosive also does collateral damage to hidden units.
+explosive_hidden(_Config) ->
+  Mech = #mech{position = {2,0}, attack_power = 10, side = right},
+  Explosive = #mech{position = {1,0}, skills = [{explosive, 10}]},
+  Collat = #mech{position = {0,0}, skills = [hidden]},
+  {[_,_,Collat2], _} = katarchy_raid:run([Mech, Explosive, Collat]),
+  undefined = Collat2#mech.position.
+
 %% Tests killing an explosive from far away.
 explosive_ranged(_Config) ->
   Explosive = #mech{position = {0,9}, skills = [{explosive, 2}]},
@@ -318,6 +292,117 @@ explosive_ranged(_Config) ->
                 side = right, skills = [ranged]},
   {[_, Collat2, MechR], _} = katarchy_raid:run([Explosive, Collat, MechR]),
   8 = Collat2#mech.hit_points.
+
+%% Tests that a hidden unit can't be attacked.
+hidden(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [hidden]},
+  MechR = #mech{position = {1,0}, attack_power = 1, side = right},
+  {[MechL, MechR], _} = katarchy_raid:run([MechL, MechR]).
+
+%% Tests that a hidden unit attacking at range doesn't get revealed.
+hidden_attacking_ranged(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 2, skills = [ranged, hidden]},
+  MechR = #mech{position = {3,0}, side = right},
+  {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
+  undefined = MechR2#mech.position.
+
+%% Tests that a hidden jumping unit can sneak past a sentry.
+hidden_jump(_Config) ->
+  MechL = #mech{position = {0,0}, speed = 1, skills = [hidden, jump]},
+  MechR = #mech{position = {4,0}, attack_power = 10, side = right},
+  {[MechL2, MechR], _} = katarchy_raid:run([MechL, MechR]),
+  undefined = MechL2#mech.position,
+  true = lists:member(hidden, MechL2#mech.skills),
+  10 = MechL2#mech.hit_points.
+
+%% Tests that a hidden unit also gets hit by perforating a unit in front of it.
+hidden_perforating(_Config) ->
+  Mechs = [#mech{position = {0,0}, skills = [hidden]},
+           #mech{position = {1,0}},
+           #mech{position = {2,0}, attack_power = 10,
+                 side = right, skills = [perforating]}],
+  {[MechH, _, _], _} = katarchy_raid:run(Mechs),
+  undefined = MechH#mech.position.
+
+%% Tests that a hidden unit can't be ranged attacked.
+hidden_ranged(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [hidden]},
+  MechR = #mech{position = {4,0}, attack_power = 1,
+                side = right, skills = [ranged]},
+  {[MechL, MechR], _} = katarchy_raid:run([MechL, MechR]).
+
+%% Tests that an ally behind a hidden mech doesn't get attacked.
+hidden_ranged_ally_behind(_Config) ->
+  Mechs = [#mech{position = {0,0}},
+           #mech{position = {2,0}, skills = [hidden]},
+           #mech{position = {1,0}, side = right},
+           #mech{position = {4,0}, side = right,
+                 attack_power = 1, skills = [ranged]}],
+  {Mechs, _} = katarchy_raid:run(Mechs).
+
+%% Tests that a hidden unit can't be ranged-perforating attacked.
+hidden_ranged_perforating(_Config) ->
+  Mechs = [#mech{position = {0,0}, skills = [hidden]},
+           #mech{position = {4,0}, side = right,
+                 attack_power = 10, skills = [ranged, perforating]}],
+  {Mechs, _} = katarchy_raid:run(Mechs).
+
+%% Tests that attacking a unit behind the hidden one actually hits the hidden.
+hidden_ranged_transparent(_Config) ->
+  MechL = #mech{position = {0,0}},
+  MechH = #mech{position = {1,0}, skills = [hidden]},
+  MechR = #mech{position = {4,0}, attack_power = 10,
+                side = right, skills = [ranged]},
+  {_, [[MechL, MechHT1, MechR]|_]} = katarchy_raid:run([MechL, MechH, MechR]),
+  undefined = MechHT1#mech.position.
+
+%% Tests that a lane with two mechs hidden don't have any changes.
+hidden_ranged_twice(_Config) ->
+  Mechs = [#mech{position = {1,0}, skills = [hidden]},
+           #mech{position = {2,0}, skills = [hidden]},
+           #mech{position = {4,0}, attack_power = 10,
+                 side = right, skills = [ranged]}],
+  {Mechs, _} = katarchy_raid:run(Mechs).
+
+%% Tests that attacking a unit behind two hidden ones actually hits the hidden.
+hidden_ranged_twice_transparent(_Config) ->
+  MechL = #mech{position = {0,0}, skills = []},
+  MechH1 = #mech{position = {1,0}, skills = [hidden]},
+  MechH2 = #mech{position = {2,0}, skills = [hidden]},
+  MechR = #mech{position = {4,0}, attack_power = 10,
+                side = right, skills = [ranged]},
+  {_, [[MechL, MechH1, MechH2T1, MechR]|_]} =
+    katarchy_raid:run([MechL, MechH1, MechH2, MechR]),
+  undefined = MechH2T1#mech.position.
+
+%% Tests that a hidden unit gets revealed after attacking.
+hidden_revealed_attacking(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10, skills = [hidden]},
+  MechR = #mech{position = {1,0}, side = right},
+  {[MechL2, _], _} = katarchy_raid:run([MechL, MechR]),
+  false = lists:member(hidden, MechL2#mech.skills).
+
+%% Tests that a hidden unit gets revealed after being bumped.
+hidden_revealed_bumped(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [hidden]},
+  MechR = #mech{position = {1,0}, speed = 1, side = right},
+  {[MechL2, MechR], _} = katarchy_raid:run([MechL, MechR]),
+  false = lists:member(hidden, MechL2#mech.skills).
+
+%% Tests that a hidden unit gets revealed after bumping an enemy.
+hidden_revealed_bumping(_Config) ->
+  MechL = #mech{position = {0,0}, speed = 1, skills = [hidden]},
+  MechR = #mech{position = {4,0}, side = right},
+  {[MechL2, MechR], _} = katarchy_raid:run([MechL, MechR]),
+  {3,0} = MechL2#mech.position,
+  false = lists:member(hidden, MechL2#mech.skills).
+
+%% Tests that a hidden unit gets revealed after being bumped when slower.
+hidden_revealed_slower(_Config) ->
+  MechL = #mech{position = {0,0}, speed = 1, skills = [hidden]},
+  MechR = #mech{position = {2,0}, speed = 2, side = right},
+  {[MechL2, _], _} = katarchy_raid:run([MechL, MechR]),
+  false = lists:member(hidden, MechL2#mech.skills).
 
 %% Test that mechs have one id that remains with them.
 mech_id_remains(_Config) ->

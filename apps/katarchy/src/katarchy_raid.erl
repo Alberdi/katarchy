@@ -104,8 +104,11 @@ do_attack([Mech|LeftToAttack], Mechs) ->
       do_attack(LeftToAttack, Mechs);
     NextPosition ->
       case lists:keyfind(NextPosition, 2, Mechs) of
-        TargetMech when TargetMech#mech.side =/= Mech#mech.side ->
-          NewMechs = do_attack(Mech, TargetMech, Mechs),
+        Target when Target#mech.side =/= Mech#mech.side ->
+          NewMechs = case lists:member(hidden, Target#mech.skills) of
+            true -> Mechs;
+            false -> do_attack(Mech, Target, Mechs)
+          end,
           do_attack(LeftToAttack, NewMechs);
         _ ->
           do_attack(LeftToAttack, Mechs)
@@ -115,17 +118,18 @@ do_attack([Mech|LeftToAttack], Mechs) ->
 
 do_attack(Attacker, Target, Mechs) ->
   NewMechs = damage(Attacker#mech.attack_power, Target, Mechs),
+  {Attacker2, NewMechs2} = reveal_hidden(Attacker, NewMechs),
   case lists:member(perforating, Attacker#mech.skills) of
     true ->
-      NextPosition = next_position(Target#mech.position, Attacker#mech.side),
-      case lists:keyfind(NextPosition, 2, NewMechs) of
+      NextPosition = next_position(Target#mech.position, Attacker2#mech.side),
+      case lists:keyfind(NextPosition, 2, NewMechs2) of
         false ->
-          NewMechs;
+          NewMechs2;
         NewTarget ->
-          do_attack(Attacker, NewTarget, NewMechs)
+          do_attack(Attacker2, NewTarget, NewMechs2)
       end;
     false ->
-      NewMechs
+      NewMechs2
   end.
 
 
@@ -140,29 +144,46 @@ do_attack_ranged(Mechs) ->
 do_attack_ranged([], Mechs) ->
   Mechs;
 do_attack_ranged([Mech|LeftToAttack], Mechs) ->
-  NextPosition = next_position(Mech),
-  NewMechs = range_attack(Mech, NextPosition, Mechs, false),
+  NewMechs = range_attack(Mech, Mechs),
   do_attack_ranged(LeftToAttack, NewMechs).
 
 
-range_attack(_Mech, undefined, Mechs, _) ->
+range_attack(Mech, Mechs) ->
+  MechsInFront = mechs_in_front(Mech, Mechs),
+  TargeteableEnemy = targeteable_enemy(Mech, MechsInFront),
+  case {lists:member(perforating, Mech#mech.skills), TargeteableEnemy} of
+    {true, true} ->
+      lists:foldl(fun(X, MechsAcc) ->
+                      damage(Mech#mech.attack_power, X, MechsAcc) end,
+                  Mechs, MechsInFront);
+    _ ->
+      range_attack(Mech, MechsInFront, TargeteableEnemy, Mechs)
+  end.
+
+range_attack(_, [], _, Mechs) ->
   Mechs;
-range_attack(Mech, TargetPos, Mechs, DidPerforate) ->
-  case lists:keyfind(TargetPos, 2, Mechs) of
-    false ->
-      NextPosition = next_position(TargetPos, Mech#mech.side),
-      range_attack(Mech, NextPosition, Mechs, DidPerforate);
-    Target when Target#mech.side =/= Mech#mech.side orelse DidPerforate ->
-      NewMechs = damage(Mech#mech.attack_power, Target, Mechs),
-      case lists:member(perforating, Mech#mech.skills) of
-        true ->
-          NextPosition = next_position(TargetPos, Mech#mech.side),
-          range_attack(Mech, NextPosition, NewMechs, true);
-        false ->
-          NewMechs
-      end;
+range_attack(Mech, [Target|_], TargeteableEnemy, Mechs) ->
+  IsHidden = lists:member(hidden, Target#mech.skills),
+  case {Target#mech.side == Mech#mech.side, IsHidden, TargeteableEnemy} of
+    {false, false, _} ->
+      damage(Mech#mech.attack_power, Target, Mechs);
+    {false, true, true} ->
+      damage(Mech#mech.attack_power, Target, Mechs);
     _ ->
       Mechs
+  end.
+
+
+targeteable_enemy(_Mech, []) ->
+  false;
+targeteable_enemy(Mech, ListMechs) ->
+  [Target|OtherMechs] = ListMechs,
+  IsEnemy = Target#mech.side =/= Mech#mech.side,
+  IsHidden = lists:member(hidden, Target#mech.skills),
+  case {IsEnemy, IsHidden} of
+    {false, _} -> false;
+    {true, false} -> true;
+    {true, true} -> targeteable_enemy(Mech, OtherMechs)
   end.
 
 
@@ -176,7 +197,11 @@ do_movement([Mech|LeftToMove], AllMechs, {CurrentPass, PrevPass} = Passes) ->
     {complete, NewMechs} ->
       do_movement(LeftToMove, NewMechs, Passes);
     {incomplete, NewMech, NewMechs} ->
-      do_movement(LeftToMove, NewMechs, {[NewMech|CurrentPass], PrevPass})
+      {NewMech2, NewMechs2} = reveal_hidden(NewMech, NewMechs),
+      NextPosition = next_position(Mech),
+      BumpedMech = lists:keyfind(NextPosition, 2, NewMechs2),
+      {_, NewMechs3} = reveal_hidden(BumpedMech, NewMechs2),
+      do_movement(LeftToMove, NewMechs3, {[NewMech2|CurrentPass], PrevPass})
   end;
 do_movement([], NewMechs, {SamePass, SamePass}) ->
   NewMechs;
@@ -202,6 +227,21 @@ jump(Mech, Mechs, Speed, BlockedPos) ->
           move_step(Mech, NextPosition, Speed, Mechs)
       end
   end.
+
+
+mechs_in_front(Mech, Mechs) ->
+  NextPosition = next_position(Mech#mech.position, Mech#mech.side),
+  lists:reverse(mechs_in_front(NextPosition, Mech#mech.side, Mechs, [])).
+
+mechs_in_front(undefined, _, _, LinedMechs) ->
+  LinedMechs;
+mechs_in_front(Position, Side, Mechs, LinedMechs) ->
+  NewLinedMechs = case lists:keyfind(Position, 2, Mechs) of
+    false -> LinedMechs;
+    Mech -> [Mech|LinedMechs]
+  end,
+  NextPosition = next_position(Position, Side),
+  mechs_in_front(NextPosition, Side, Mechs, NewLinedMechs).
 
 
 move(_Mech, 0, Mechs) ->
@@ -248,6 +288,17 @@ next_position({PosX, PosY}, Side) ->
       undefined;
     down ->
       {PosX, PosY + 1}
+  end.
+
+
+reveal_hidden(Mech, Mechs) ->
+  case lists:member(hidden, Mech#mech.skills) of
+    false ->
+      {Mech, Mechs};
+    true ->
+      NewSkills = lists:delete(hidden, Mech#mech.skills),
+      NewMech = Mech#mech{skills = NewSkills},
+      {NewMech, lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech)}
   end.
 
 
