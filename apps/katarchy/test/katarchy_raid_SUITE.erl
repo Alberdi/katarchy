@@ -48,6 +48,7 @@ all() ->
    hidden_ranged_ally_behind,
    hidden_ranged_perforating,
    hidden_ranged_transparent,
+   hidden_ranged_transparent_adjacent,
    hidden_ranged_twice,
    hidden_ranged_twice_transparent,
    hidden_revealed_attacking,
@@ -373,6 +374,15 @@ hidden_ranged_perforating(_Config) ->
 hidden_ranged_transparent(_Config) ->
   MechL = #mech{position = {0,0}},
   MechH = #mech{position = {1,0}, skills = [hidden]},
+  MechR = #mech{position = {4,0}, attack_power = 10,
+                side = right, skills = [ranged]},
+  {_, [[MechL, MechHT1, MechR]|_]} = katarchy_raid:run([MechL, MechH, MechR]),
+  undefined = MechHT1#mech.position.
+
+%% Tests that a hidden unit just in front of a ranged one can get damaged.
+hidden_ranged_transparent_adjacent(_Config) ->
+  MechL = #mech{position = {0,0}},
+  MechH = #mech{position = {3,0}, skills = [hidden]},
   MechR = #mech{position = {4,0}, attack_power = 10,
                 side = right, skills = [ranged]},
   {_, [[MechL, MechHT1, MechR]|_]} = katarchy_raid:run([MechL, MechH, MechR]),

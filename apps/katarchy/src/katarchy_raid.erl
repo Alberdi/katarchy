@@ -52,70 +52,38 @@ damage(Damage, Mech, Mechs) ->
   explode_if_killed(NewMech, NewMechs).
 
 
-explode_if_killed(Mech, Mechs) ->
-  case {lists:keyfind(explosive, 1, Mech#mech.skills), Mech#mech.hit_points} of
-    {{explosive, Value}, HP} when Value > 0 andalso HP =< 0 ->
-      NewSkills = lists:keyreplace(explosive, 1, Mech#mech.skills,
-                                   {explosive, 0}),
-      NewMech = Mech#mech{skills = NewSkills},
-      NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
-      lists:foldl(fun(X, MechsAcc) -> damage(Value, X, MechsAcc) end,
-                  NewMechs, adjacent_mechs(NewMech#mech.position, NewMechs));
-    _ ->
-      Mechs
-  end.
-
-
-is_faster(M1, M2) ->
-  case [lists:keyfind(slow, 1, M#mech.skills) || M <- [M1,M2]] of
-    [false, {slow, _, _}] ->
-      true;
-    [{slow, _, _}, false] ->
-      false;
-    [{slow, MaxX, _}, {slow, MaxY, _}] ->
-      MaxX =< MaxY;
-    [false, false] ->
-      M1#mech.speed >= M2#mech.speed
-  end.
-
-
-is_slowed(Mech) ->
-  case lists:keyfind(slow, 1, Mech#mech.skills) of
-    {slow, _Max, I} when I =/= 0 ->
-      true;
-    _ ->
-      false
-  end.
-
-
 do_attack(Mechs) ->
   AttackingMechs = lists:filter(fun can_attack/1, Mechs),
   FasterMechs = lists:sort(fun is_faster/2, AttackingMechs),
-  NewMechs = do_attack(FasterMechs, Mechs),
-  NewMechs2 = do_attack_ranged(NewMechs),
-  lists:map(fun incapacitate_if_needed/1, NewMechs2).
+  do_attack(FasterMechs, Mechs).
 
 do_attack([], Mechs) ->
   Mechs;
 do_attack([Mech|LeftToAttack], Mechs) ->
-  TargetMechs = lists:filtermap(fun(P) ->
-                                    case lists:keyfind(P, 2, Mechs) of
-                                      false -> false;
-                                      Target -> {true, Target}
-                                    end end, positions_to_attack(Mech)),
-  ShouldAttack = lists:member(true, [visible_lane_enemy(Mech, [T])
-                                     || T <- TargetMechs]),
-  NewMechs = case ShouldAttack of
-               true ->
-                 lists:foldl(fun(M, Ms) -> do_actual_attack(Mech, M, Ms) end,
-                             Mechs, TargetMechs);
-               false ->
-                 Mechs
-             end,
+  Positions = positions_to_attack(Mech),
+  IsRanged = lists:member(ranged, Mech#mech.skills),
+  TargetMechs = [begin case IsRanged of 
+                         true -> mechs_in_front(P, Mech#mech.side, Mechs);
+                         false -> case lists:keyfind(P, 2, Mechs) of
+                                    false -> [];
+                                    M -> [M]
+                                  end
+                       end end || P <- Positions],
+  NewMechs =
+  case lists:any(fun(X) -> visible_lane_enemy(Mech, X) end, TargetMechs) of
+    true ->
+      lists:foldl(fun(MechsInFront, Ms) when IsRanged ->
+                      do_attack_ranged(Mech, MechsInFront, Ms);
+                     ([Target], Ms) ->
+                      do_attack_melee(Mech, Target, Ms) end,
+                  Mechs, TargetMechs);
+    false ->
+      Mechs
+  end,
   do_attack(LeftToAttack, NewMechs).
 
 
-do_actual_attack(Attacker, Target, Mechs) ->
+do_attack_melee(Attacker, Target, Mechs) ->
   NewMechs = damage(Attacker#mech.attack_power, Target, Mechs),
   {Attacker2, NewMechs2} = reveal_hidden(Attacker, NewMechs),
   case lists:member(perforating, Attacker#mech.skills) of
@@ -125,42 +93,14 @@ do_actual_attack(Attacker, Target, Mechs) ->
         false ->
           NewMechs2;
         NewTarget ->
-          do_actual_attack(Attacker2, NewTarget, NewMechs2)
+          do_attack_melee(Attacker2, NewTarget, NewMechs2)
       end;
     false ->
       NewMechs2
   end.
 
 
-do_attack_ranged(Mechs) ->
-  AttackingFun = fun(X) -> lists:member(ranged, X#mech.skills)
-                           andalso can_attack(X) end,
-  AttackingMechs = lists:filter(AttackingFun, Mechs),
-  FasterMechs = lists:sort(fun is_faster/2, AttackingMechs),
-  NewMechs = do_attack_ranged(FasterMechs, Mechs),
-  lists:map(fun incapacitate_if_needed/1, NewMechs).
-
-do_attack_ranged([], Mechs) ->
-  Mechs;
-do_attack_ranged([Mech|LeftToAttack], Mechs) ->
-  Positions = positions_to_attack(Mech),
-  LaneInfo = [begin
-                MechsInFront = mechs_in_front(P, Mech#mech.side, Mechs),
-                {MechsInFront, visible_lane_enemy(Mech, MechsInFront)}
-              end || P <- Positions],
-  ShouldAttack = lists:any(fun({_, true}) -> true; (_) -> false end, LaneInfo),
-  NewMechs = case ShouldAttack of
-               true ->
-                 lists:foldl(fun({MechsInFront, _}, Ms) ->
-                                 range_attack(Mech, MechsInFront, Ms) end,
-                             Mechs, LaneInfo);
-               false ->
-                 Mechs
-             end,
-  do_attack_ranged(LeftToAttack, NewMechs).
-
-
-range_attack(Mech, MechsInFront, Mechs) ->
+do_attack_ranged(Mech, MechsInFront, Mechs) ->
   case lists:member(perforating, Mech#mech.skills) of
     true ->
       lists:foldl(fun(X, MechsAcc) ->
@@ -193,10 +133,44 @@ do_movement([], NewMechs, {CurrentPass, _}) ->
   do_movement(lists:reverse(CurrentPass), NewMechs, {[], CurrentPass}).
 
 
+explode_if_killed(Mech, Mechs) ->
+  case {lists:keyfind(explosive, 1, Mech#mech.skills), Mech#mech.hit_points} of
+    {{explosive, Value}, HP} when Value > 0 andalso HP =< 0 ->
+      NewSkills = lists:keyreplace(explosive, 1, Mech#mech.skills,
+                                   {explosive, 0}),
+      NewMech = Mech#mech{skills = NewSkills},
+      NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
+      lists:foldl(fun(X, MechsAcc) -> damage(Value, X, MechsAcc) end,
+                  NewMechs, adjacent_mechs(NewMech#mech.position, NewMechs));
+    _ ->
+      Mechs
+  end.
+
+
 incapacitate_if_needed(Mech) when Mech#mech.hit_points =< 0 ->
   Mech#mech{position = undefined};
 incapacitate_if_needed(Mech) ->
   Mech.
+
+
+is_faster(M1, M2) ->
+  case [lists:keyfind(slow, 1, M#mech.skills) || M <- [M1,M2]] of
+    [false, {slow, _, _}] ->
+      true;
+    [{slow, _, _}, false] ->
+      false;
+    [{slow, MaxX, _}, {slow, MaxY, _}] ->
+      MaxX =< MaxY;
+    [false, false] ->
+      M1#mech.speed >= M2#mech.speed
+  end.
+
+
+is_slowed(Mech) ->
+  case lists:keyfind(slow, 1, Mech#mech.skills) of
+    {slow, _Max, I} when I =/= 0 -> true;
+    _ -> false
+  end.
 
 
 jump(Mech, Mechs, Speed, BlockedPos) ->
@@ -214,8 +188,7 @@ jump(Mech, Mechs, Speed, BlockedPos) ->
 
 
 mechs_in_front(Position, Side, Mechs) ->
-  NextPosition = next_position(Position, Side),
-  lists:reverse(mechs_in_front(NextPosition, Side, Mechs, [])).
+  lists:reverse(mechs_in_front(Position, Side, Mechs, [])).
 
 mechs_in_front(undefined, _, _, LinedMechs) ->
   LinedMechs;
@@ -301,7 +274,8 @@ reveal_hidden(Mech, Mechs) ->
 run_turns(InitialMechs, Turns) ->
   Mechs = [slow_tick(Mech) || Mech <- InitialMechs],
   MovedMechs = do_movement(Mechs),
-  FinalMechs = do_attack(MovedMechs),
+  AttackedMechs = do_attack(MovedMechs),
+  FinalMechs = lists:map(fun incapacitate_if_needed/1, AttackedMechs),
   case lists:member(FinalMechs, Turns) orelse FinalMechs =:= InitialMechs of
     true ->
       {FinalMechs, Turns};
