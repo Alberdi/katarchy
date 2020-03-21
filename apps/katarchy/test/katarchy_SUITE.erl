@@ -17,6 +17,7 @@ all() ->
    raid_mech_hidden,
    raid_mech_fake_fields,
    raid_mech_position_yx,
+   raid_mech_triattack,
    raid_mech_side_right,
    raid_mech_simple,
    raid_mech_skills,
@@ -85,6 +86,13 @@ raid_mech_skills(_Config) ->
   true = lists:member(<<"jump">>, SkillTypes),
   true = lists:member(<<"perforating">>, SkillTypes),
   true = lists:member(<<"ranged">>, SkillTypes).
+
+%% Test that a triattack skill in a mech can be sent and returned.
+raid_mech_triattack(_Config) ->
+  {[MechJson], _} = post_raid(ct:get_config(json_mech_triattack)),
+  {Mech} = jiffy:decode(MechJson),
+  [{Skill}] = proplists:get_value(<<"skills">>, Mech),
+  <<"triattack">> = proplists:get_value(<<"type">>, Skill).
 
 %% Test that a simple mech can be sent and returned.
 raid_mech_simple(_Config) ->

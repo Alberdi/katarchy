@@ -31,6 +31,7 @@ all() ->
    attack_ranged_double_ko,
    attack_ranged_no_target,
    attack_ranged_not_same_side,
+   attack_ranged_once,
    attack_ranged_right,
    attack_slow,
    explosive,
@@ -39,6 +40,7 @@ all() ->
    explosive_hidden,
    explosive_ranged,
    hidden,
+   hidden_ally_back,
    hidden_attacking_ranged,
    hidden_jump,
    hidden_perforating,
@@ -72,7 +74,13 @@ all() ->
    movement_turns_track,
    not_same_position,
    single_mech,
-   sitting_ducks].
+   sitting_ducks,
+   triattack,
+   triattack_all_hidden,
+   triattack_friendly_fire,
+   triattack_friendly_fire_ranged,
+   triattack_ranged,
+   triattack_ranged_allies_cover].
 
 %%--------------------------------------------------------------------
 %% TEST CASES
@@ -233,6 +241,13 @@ attack_ranged_not_same_side(_Config) ->
   Mech2 = #mech{position = {4,0}},
   {[Mech1, Mech2], _} = katarchy_raid:run([Mech1, Mech2]).
 
+%% Test that ranged mechs don't attack twice.
+attack_ranged_once(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 5, skills = [ranged]},
+  MechR = #mech{position = {1,0}, side = right},
+  {_, Turns} = katarchy_raid:run([MechL, MechR]),
+  2 = length(Turns).
+
 %% Test that one right mech can attack to the left.
 attack_ranged_right(_Config) ->
   MechL = #mech{position = {0,0}},
@@ -298,6 +313,13 @@ hidden(_Config) ->
   MechL = #mech{position = {0,0}, skills = [hidden]},
   MechR = #mech{position = {1,0}, attack_power = 1, side = right},
   {[MechL, MechR], _} = katarchy_raid:run([MechL, MechR]).
+
+%% Tests not attacking a hidden unit with an ally behind it.
+hidden_ally_back(_Config) ->
+  MechL = #mech{position = {0,0}},
+  MechH = #mech{position = {1,0}, skills = [hidden]},
+  MechR = #mech{position = {2,0}, attack_power = 1, side = right},
+  {[MechL, MechH, MechR], _} = katarchy_raid:run([MechL, MechH, MechR]).
 
 %% Tests that a hidden unit attacking at range doesn't get revealed.
 hidden_attacking_ranged(_Config) ->
@@ -557,4 +579,60 @@ single_mech(_Config) ->
 sitting_ducks(_Config) ->
   Mech = #mech{},
   {[Mech, Mech], _} = katarchy_raid:run([Mech, Mech]).
+
+
+%% Test that a mech with triattack can damage the three front enemies.
+triattack(_Config) ->
+  MechL = #mech{position = {0,1}, attack_power = 10, skills = [triattack]},
+  MechsR = [#mech{position = {1,0}, side = right},
+            #mech{position = {1,1}, side = right},
+            #mech{position = {1,2}, side = right}],
+  {[MechL|MechsR2], _} = katarchy_raid:run([MechL|MechsR]),
+  true = lists:all(fun(X) -> undefined == X#mech.position end, MechsR2).
+
+%% Test that a mech with triattack doesn't attack if all enemies are hidden.
+triattack_all_hidden(_Config) ->
+  MechL = #mech{position = {0,1}, attack_power = 10, skills = [triattack]},
+  MechsR = [#mech{position = {1,0}, side = right, skills = [hidden]},
+            #mech{position = {1,1}, side = right, skills = [hidden]},
+            #mech{position = {1,2}, side = right, skills = [hidden]}],
+  {[MechL|MechsR], _} = katarchy_raid:run([MechL|MechsR]).
+
+%% Test that triattack can cause friendly fire.
+triattack_friendly_fire(_Config) ->
+  Attacker = #mech{position = {0,0}, attack_power = 10, skills = [triattack]},
+  Ally = #mech{position = {1,0}},
+  Enemy = #mech{position = {1,1}, side = right},
+  {[Attacker, Ally2, Enemy2], _} = katarchy_raid:run([Attacker, Ally, Enemy]),
+  undefined = Ally2#mech.position,
+  undefined = Enemy2#mech.position.
+
+%% Test that triattack ranged can cause friendly fire.
+triattack_friendly_fire_ranged(_Config) ->
+  Attacker = #mech{position = {0,0}, attack_power = 10,
+                   skills = [triattack, ranged]},
+  Ally = #mech{position = {3,0}},
+  Enemy = #mech{position = {5,1}, side = right},
+  {[Attacker, Ally2, Enemy2], _} = katarchy_raid:run([Attacker, Ally, Enemy]),
+  undefined = Ally2#mech.position,
+  undefined = Enemy2#mech.position.
+
+%% Test that a mech with ranged triattack can damage up to three enemies.
+triattack_ranged(_Config) ->
+  MechL = #mech{position = {0,1}, attack_power = 10,
+                skills = [triattack, ranged]},
+  MechsR = [#mech{position = {3,0}, side = right},
+            #mech{position = {4,1}, side = right},
+            #mech{position = {5,2}, side = right}],
+  {[MechL|MechsR2], _} = katarchy_raid:run([MechL|MechsR]),
+  true = lists:all(fun(X) -> undefined == X#mech.position end, MechsR2).
+
+%% Test that a mech with triattack doesn't attack if it's covered with allies.
+triattack_ranged_allies_cover(_Config) ->
+  MechL = #mech{position = {0,1}, attack_power = 10, skills = [triattack]},
+  MechR = #mech{position = {4,0}, side = right},
+  Cover = [#mech{position = {1,0}},
+           #mech{position = {1,1}},
+           #mech{position = {1,2}}],
+  {[MechL,MechR|Cover], _} = katarchy_raid:run([MechL,MechR|Cover]).
 

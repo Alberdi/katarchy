@@ -73,13 +73,15 @@ json_to_mech([{<<"speed">>, V}|Fields], Mech) when is_integer(V) ->
 json_to_mech([{<<"skills">>, V}|Fields], Mech) when is_list(V) ->
   RawSkills = [{proplists:get_value(<<"type">>, Skill),
                 proplists:get_value(<<"value">>, Skill)} || {Skill} <- V],
-  Skills = lists:filtermap(fun({<<"jump">>, _}) -> {true, jump};
-                              ({<<"hidden">>, _}) -> {true, hidden};
-                              ({<<"perforating">>, _}) -> {true, perforating};
-                              ({<<"ranged">>, _}) -> {true, ranged};
-                              ({<<"explosive">>, I}) -> {true, {explosive, I}};
+  SimpleSkills = [<<"jump">>, <<"hidden">>, <<"perforating">>, <<"ranged">>,
+                  <<"triattack">>],
+  Skills = lists:filtermap(fun({<<"explosive">>, I}) -> {true, {explosive, I}};
                               ({<<"slow">>, I}) -> {true, {slow, I, I}};
-                              (_) -> false end, RawSkills),
+                              ({S, _}) ->
+                               case lists:member(S, SimpleSkills) of
+                                 true -> {true, binary_to_atom(S, utf8)};
+                                 false -> false
+                               end end, RawSkills),
   json_to_mech(Fields, Mech#mech{skills = Skills});
 json_to_mech([_|Fields], Mech) ->
   json_to_mech(Fields, Mech).
