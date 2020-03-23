@@ -1,8 +1,3 @@
-%%%-------------------------------------------------------------------
-%% @doc katarchy public API
-%% @end
-%%%-------------------------------------------------------------------
-
 -module(katarchy_app).
 
 -behaviour(application).
@@ -19,4 +14,3 @@ start(_StartType, _StartArgs) ->
 stop(_State) ->
   ok.
 
-%% internal functions
