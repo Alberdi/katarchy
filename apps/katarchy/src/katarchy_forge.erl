@@ -17,43 +17,63 @@ options(Mech, BPs) ->
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
-apply_mod({attack_power, Fun, Value}, Mech) ->
-  NewValue = apply_mod_fun(Fun, Value, Mech#mech.attack_power, attack_power),
-  Mech#mech{attack_power = NewValue};
-apply_mod({hit_points, Fun, Value}, Mech) ->
-  NewValue = apply_mod_fun(Fun, Value, Mech#mech.hit_points, hit_points),
-  Mech#mech{hit_points = NewValue};
-apply_mod({speed, Fun, Value}, Mech) ->
-  NewValue = apply_mod_fun(Fun, Value, Mech#mech.speed, speed),
-  Mech#mech{speed = NewValue}.
+apply_mod({Field, Fun, Value}, Mech) ->
+  Index = mech_index(Field),
+  NewValue = apply_mod_fun(Fun, Value, element(Index, Mech), Field),
+  setelement(Index, Mech, NewValue).
 
 
-apply_mod_fun(minus, Param, OldValue, hit_points) ->
-  case Param >= OldValue of
-    true -> throw({not_applicable, {hit_points, gte, Param+1}});
-    false -> OldValue - Param
-  end;
-apply_mod_fun(minus, Param, OldValue, Field) ->
-  case Param > OldValue of
-    true -> throw({not_applicable, {Field, gte, Param}});
-    false -> OldValue - Param
-  end;
+apply_mod_fun(minus, Param, OldValue, hit_points) when Param >= OldValue ->
+  throw({not_applicable, {hit_points, gt, Param}});
+apply_mod_fun(minus, Param, OldValue, Field) when Param > OldValue ->
+  throw({not_applicable, {Field, gte, Param}});
+apply_mod_fun(minus, Param, OldValue, _Field) ->
+  OldValue - Param;
 apply_mod_fun(plus, Param, OldValue, _) ->
   OldValue + Param;
 apply_mod_fun(set, Param, _, _) ->
   Param.
 
 
+invalid_req({Field, Fun, V} = Req, Mech) ->
+  Index = mech_index(Field),
+  case satisfies_req_fun(element(Index, Mech), Fun, V) of
+    true -> false;
+    false -> {true, Req}
+  end.
+
+
+mech_index(attack_power) ->
+  #mech.attack_power;
+mech_index(hit_points) ->
+  #mech.hit_points;
+mech_index(speed) ->
+  #mech.speed.
+
+
 options(_, [], Options) ->
   lists:reverse(Options);
 options(Mech, [BP|BPs], Options) ->
+  ReqErrors = lists:filtermap(fun(Req) -> invalid_req(Req, Mech) end,
+                              BP#blueprint.reqs),
   FoldFun = fun(Mod, {NewMech, Errors}) ->
                 try {apply_mod(Mod, NewMech), Errors}
                 catch throw:{not_applicable, Reason} ->
                         {NewMech, [Reason|Errors]}
                 end end,
-  case lists:foldl(FoldFun, {Mech, []}, BP#blueprint.mods) of
+  case lists:foldl(FoldFun, {Mech, ReqErrors}, BP#blueprint.mods) of
     {NewMech, []} -> options(Mech, BPs, [{NewMech,BP}|Options]);
     {_, Errors} -> options(Mech, BPs, [{not_applicable, Errors, BP}|Options])
   end.
 
+
+satisfies_req_fun(Param1, eq, Param2) ->
+  Param1 == Param2;
+satisfies_req_fun(Param1, gt, Param2) ->
+  Param1 > Param2;
+satisfies_req_fun(Param1, gte, Param2) ->
+  Param1 >= Param2;
+satisfies_req_fun(Param1, lt, Param2) ->
+  Param1 < Param2;
+satisfies_req_fun(Param1, lte, Param2) ->
+  Param1 =< Param2.

@@ -1,3 +1,4 @@
 -record(blueprint, {id = undefined :: undefined | binary(),
-                    mods = [] :: [tuple()]}).
+                    mods = [] :: [tuple()],
+                    reqs = [] :: [tuple()]}).
 

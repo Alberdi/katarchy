@@ -29,6 +29,23 @@ all() ->
    multiple_mods,
    multiple_mods_decrease_not_applicable,
    multiple_mods_decrease_one_not_applicable,
+   multiple_reqs,
+   multiple_reqs_not_applicable,
+   multiple_reqs_one_not_applicable,
+   requirement,
+   requirement_and_mod_not_applicable,
+   requirement_eq_met,
+   requirement_eq_not_met,
+   requirement_gt_met,
+   requirement_gt_not_met,
+   requirement_gte_met,
+   requirement_gte_met_eq,
+   requirement_gte_not_met,
+   requirement_lt_met,
+   requirement_lt_not_met,
+   requirement_lte_met,
+   requirement_lte_met_eq,
+   requirement_lte_not_met,
    same_mech,
    same_mech_modified,
    speed_decrease,
@@ -90,13 +107,13 @@ hitpoints_decrease(_Config) ->
 %% Test that a blueprint that decreases the hit poitns below 0 isn't applicable.
 hitpoints_decrease_not_applicable(_Config) ->
   BP = #blueprint{mods = [{hit_points, minus, 14}]},
-  [{not_applicable, [{hit_points, gte, 15}], BP}] =
+  [{not_applicable, [{hit_points, gt, 14}], BP}] =
     katarchy_forge:options(#mech{}, [BP]).
 
 %% Test that a blueprint that decreases the hit poitns to 0 isn't applicable.
 hitpoints_decrease_to_zero(_Config) ->
   BP = #blueprint{mods = [{hit_points, minus, 10}]},
-  [{not_applicable, [{hit_points, gte, 11}], BP}] =
+  [{not_applicable, [{hit_points, gt, 10}], BP}] =
     katarchy_forge:options(#mech{}, [BP]).
 
 %% Test that a blueprint might increase the hitpoints.
@@ -136,6 +153,109 @@ multiple_mods_decrease_not_applicable(_Config) ->
 multiple_mods_decrease_one_not_applicable(_Config) ->
   BP = #blueprint{mods = [{hit_points, plus, 5}, {speed, minus, 4}]},
   [{not_applicable, [{speed, gte, 4}], BP}] =
+    katarchy_forge:options(#mech{}, [BP]).
+
+%% Test that a single blueprint might have multiple requirements.
+multiple_reqs(_Config) ->
+  BP = #blueprint{reqs = [{hit_points, gte, 5}, {speed, eq, 0}]},
+  Mech = #mech{},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a single blueprint might have many not applicable requirements.
+multiple_reqs_not_applicable(_Config) ->
+  BP = #blueprint{reqs = [{attack_power, eq, 1}, {speed, gte, 9}]},
+  [{not_applicable, [{attack_power, eq, 1}, {speed, gte, 9}], BP}] =
+    katarchy_forge:options(#mech{}, [BP]).
+
+%% Test that a single blueprint might have a not applicable requirement.
+multiple_reqs_one_not_applicable(_Config) ->
+  BP = #blueprint{reqs = [{speed, gte, 0}, {hit_points, eq, 2}]},
+  [{not_applicable, [{hit_points, eq, 2}], BP}] =
+    katarchy_forge:options(#mech{}, [BP]).
+
+%% Test that a requirement can be met and the blueprint applied.
+requirement(_Config) ->
+  BP = #blueprint{mods = [{hit_points, set, 8}], reqs = [{hit_points, gte, 5}]},
+  [{Mech, BP}] = katarchy_forge:options(#mech{}, [BP]),
+  8 = Mech#mech.hit_points.
+
+%% Test that a requirement can't be met and a mod is not applicable.
+requirement_and_mod_not_applicable(_Config) ->
+  BP = #blueprint{mods = [{speed, minus, 1}], reqs = [{attack_power, eq, 5}]},
+  [{not_applicable, [{speed, gte, 1}, {attack_power, eq, 5}], BP}] =
+    katarchy_forge:options(#mech{}, [BP]).
+
+%% Test that an eq requirement can be met with an exact match.
+requirement_eq_met(_Config) ->
+  BP = #blueprint{reqs = [{hit_points, eq, 10}]},
+  Mech = #mech{},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that an eq requirement can't be met.
+requirement_eq_not_met(_Config) ->
+  BP = #blueprint{reqs = [{attack_power, eq, 1}]},
+  Mech = #mech{},
+  [{not_applicable, [{attack_power, eq, 1}], BP}] =
+    katarchy_forge:options(Mech, [BP]).
+
+%% Test that a gt requirement can be met with a strictly greater parameter.
+requirement_gt_met(_Config) ->
+  BP = #blueprint{reqs = [{speed, gt, 0}]},
+  Mech = #mech{speed = 1},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a gt requirement can't be met.
+requirement_gt_not_met(_Config) ->
+  BP = #blueprint{reqs = [{attack_power, gt, 0}]},
+  [{not_applicable, [{attack_power, gt, 0}], BP}] =
+    katarchy_forge:options(#mech{}, [BP]).
+
+%% Test that a gte requirement can be met with a strictly greater parameter.
+requirement_gte_met(_Config) ->
+  BP = #blueprint{reqs = [{hit_points, gte, 9}]},
+  Mech = #mech{},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a gte requirement can be met with an exact match.
+requirement_gte_met_eq(_Config) ->
+  BP = #blueprint{reqs = [{speed, gte, 2}]},
+  Mech = #mech{speed = 2},
+  [{Mech,  BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a gte requirement can't be met.
+requirement_gte_not_met(_Config) ->
+  BP = #blueprint{reqs = [{attack_power, gte, 2}]},
+  [{not_applicable, [{attack_power, gte, 2}], BP}] =
+    katarchy_forge:options(#mech{}, [BP]).
+
+%% Test that a lt requirement can be met with a strictly lower parameter.
+requirement_lt_met(_Config) ->
+  BP = #blueprint{reqs = [{hit_points, lt, 11}]},
+  Mech = #mech{},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a lt requirement can't be met.
+requirement_lt_not_met(_Config) ->
+  BP = #blueprint{reqs = [{attack_power, lt, 1}]},
+  [{not_applicable, [{attack_power, lt, 1}], BP}] =
+    katarchy_forge:options(#mech{attack_power = 1}, [BP]).
+
+%% Test that a lte requirement can be met with a strictly lower parameter.
+requirement_lte_met(_Config) ->
+  BP = #blueprint{reqs = [{attack_power, lte, 14}]},
+  Mech = #mech{attack_power = 13},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a lte requirement can be met with an exact match.
+requirement_lte_met_eq(_Config) ->
+  BP = #blueprint{reqs = [{speed, lte, 12}]},
+  Mech = #mech{speed = 12},
+  [{Mech,  BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a lte requirement can't be met.
+requirement_lte_not_met(_Config) ->
+  BP = #blueprint{reqs = [{hit_points, lte, 3}]},
+  [{not_applicable, [{hit_points, lte, 3}], BP}] =
     katarchy_forge:options(#mech{}, [BP]).
 
 %% Test that the returned mech is the input if there aren't any mods.
