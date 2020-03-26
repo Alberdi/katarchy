@@ -52,7 +52,9 @@ all() ->
    speed_decrease_not_applicable,
    speed_decrease_to_zero,
    speed_increase,
-   speed_set].
+   speed_set,
+   skill_add,
+   skill_remove].
 
 %%--------------------------------------------------------------------
 %% TEST CASES
@@ -300,3 +302,16 @@ speed_set(_Config) ->
   BP = #blueprint{mods = [{speed, set, 2}]},
   [{Mech, BP}] = katarchy_forge:options(#mech{speed = 3}, [BP]),
   2 = Mech#mech.speed.
+
+%% Test that a blueprint might add a skill.
+skill_add(_Config) ->
+  BP = #blueprint{mods = [{skill, add, jump}]},
+  [{Mech, BP}] = katarchy_forge:options(#mech{}, [BP]),
+  true = lists:member(jump, Mech#mech.skills).
+
+%% Test that a blueprint might remove a skill.
+skill_remove(_Config) ->
+  BP = #blueprint{mods = [{skill, del, hidden}]},
+  [{Mech, BP}] = katarchy_forge:options(#mech{}, [BP]),
+  false = lists:member(hidden, Mech#mech.skills).
+

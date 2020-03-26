@@ -265,8 +265,7 @@ reveal_hidden(Mech, Mechs) ->
     false ->
       {Mech, Mechs};
     true ->
-      NewSkills = lists:delete(hidden, Mech#mech.skills),
-      NewMech = Mech#mech{skills = NewSkills},
+      NewMech = katarchy_mech:skill_delete(hidden, Mech),
       {NewMech, lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech)}
   end.
 

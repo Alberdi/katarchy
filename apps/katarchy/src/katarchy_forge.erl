@@ -17,6 +17,10 @@ options(Mech, BPs) ->
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
+apply_mod({skill, add, Value}, Mech) ->
+  katarchy_mech:skill_add(Value, Mech);
+apply_mod({skill, del, Value}, Mech) ->
+  katarchy_mech:skill_delete(Value, Mech);
 apply_mod({Field, Fun, Value}, Mech) ->
   Index = mech_index(Field),
   NewValue = apply_mod_fun(Fun, Value, element(Index, Mech), Field),
