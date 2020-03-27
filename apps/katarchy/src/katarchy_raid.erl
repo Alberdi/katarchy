@@ -20,28 +20,28 @@ run(Mechs) ->
 adjacent_mechs(Position, Mechs) ->
   lists:filtermap(fun(Side) ->
                       case next_position(Position, Side) of
-                        undefined ->
-                          false;
-                        Pos ->
+                        Pos when is_tuple(Pos) ->
                           case lists:keyfind(Pos, 2, Mechs) of
                             false ->
                               false;
                             Mech ->
                               {true, Mech}
-                          end
+                          end;
+                        _ ->
+                          false
                       end
                   end, [left, right, up, down]).
 
 
 can_attack(Mech) ->
   not is_slowed(Mech) andalso
-  Mech#mech.position =/= undefined andalso
+  is_tuple(Mech#mech.position) andalso
   Mech#mech.attack_power > 0.
 
 
 can_move(Mech) ->
   not is_slowed(Mech) andalso
-  Mech#mech.position =/= undefined andalso
+  is_tuple(Mech#mech.position) andalso
   Mech#mech.speed > 0.
 
 
@@ -148,7 +148,7 @@ explode_if_killed(Mech, Mechs) ->
 
 
 incapacitate_if_needed(Mech) when Mech#mech.hit_points =< 0 ->
-  Mech#mech{position = undefined};
+  Mech#mech{position = destroyed};
 incapacitate_if_needed(Mech) ->
   Mech.
 
@@ -175,7 +175,7 @@ is_slowed(Mech) ->
 
 jump(Mech, Mechs, Speed, BlockedPos) ->
   case next_position(BlockedPos, Mech#mech.side) of
-    undefined ->
+    raided ->
       {complete, Mechs};
     NextPosition ->
       case lists:keymember(NextPosition, 2, Mechs) of
@@ -190,22 +190,22 @@ jump(Mech, Mechs, Speed, BlockedPos) ->
 mechs_in_front(Position, Side, Mechs) ->
   lists:reverse(mechs_in_front(Position, Side, Mechs, [])).
 
-mechs_in_front(undefined, _, _, LinedMechs) ->
-  LinedMechs;
-mechs_in_front(Position, Side, Mechs, LinedMechs) ->
+mechs_in_front(Position, Side, Mechs, LinedMechs) when is_tuple(Position) ->
   NewLinedMechs = case lists:keyfind(Position, 2, Mechs) of
     false -> LinedMechs;
     Mech -> [Mech|LinedMechs]
   end,
   NextPosition = next_position(Position, Side),
-  mechs_in_front(NextPosition, Side, Mechs, NewLinedMechs).
+  mechs_in_front(NextPosition, Side, Mechs, NewLinedMechs);
+mechs_in_front(_, _, _, LinedMechs) ->
+  LinedMechs.
 
 
 move(_Mech, 0, Mechs) ->
   {complete, Mechs};
 move(Mech, Speed, Mechs) ->
   TargetPos = next_position(Mech),
-  case TargetPos =/= undefined andalso lists:keymember(TargetPos, 2, Mechs) of
+  case is_tuple(TargetPos) andalso lists:keymember(TargetPos, 2, Mechs) of
     true ->
       case lists:member(jump, Mech#mech.skills) of
         true ->
@@ -230,11 +230,11 @@ next_position(Mech) ->
 next_position({PosX, PosY}, Side) ->
   case Side of
     left when PosX >= ?GRID_LIMIT-1 ->
-      undefined;
+      raided;
     left ->
       {PosX + 1, PosY};
     right when PosX =:= 0 ->
-      undefined;
+      raided;
     right ->
       {PosX - 1, PosY};
     up when PosY =:= 0 ->
@@ -257,7 +257,7 @@ positions_to_attack(Mech) ->
                 false ->
                   [NextPosition]
               end,
-  [Pos || Pos <- Positions, Pos =/= undefined].
+  [Pos || Pos <- Positions, is_tuple(Pos)].
 
 
 reveal_hidden(Mech, Mechs) ->
@@ -299,7 +299,7 @@ slow_tick(Mech) ->
 
 
 validate_setup(Mechs) ->
-  Positions = [M#mech.position || M <- Mechs, M#mech.position =/= undefined],
+  Positions = [M#mech.position || M <- Mechs, is_tuple(M#mech.position)],
   UniquePositions = length(lists:usort(Positions)),
   try
     UniquePositions = length(Positions)

@@ -91,23 +91,23 @@ attack_double_ko(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1},
   MechR = #mech{position = {1,0}, attack_power = 1, side = right},
   {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechL2#mech.position,
-  undefined = MechR2#mech.position.
+  destroyed = MechL2#mech.position,
+  destroyed = MechR2#mech.position.
 
 %% Test that two mechs can ko each other even if one is slower
 attack_double_ko_slow(_Config) ->
   MechR = #mech{position = {1,0}, attack_power = 1, side = right},
   MechL = #mech{position = {0,0}, attack_power = 2, skills = [{slow, 2, 2}]},
   {[MechR2, MechL2], _} = katarchy_raid:run([MechR, MechL]),
-  undefined = MechL2#mech.position,
-  undefined = MechR2#mech.position.
+  destroyed = MechL2#mech.position,
+  destroyed = MechR2#mech.position.
 
 %% Test that one mech can attack a rival that it's facing.
 attack_facing(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1},
   MechR = #mech{position = {1,0}, side = right},
   {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechR2#mech.position.
+  destroyed = MechR2#mech.position.
 
 %% Test that one mech can't attack a rival that isn't facing.
 attack_not_facing(_Config) ->
@@ -134,8 +134,8 @@ attack_perforating_melee(_Config) ->
   MechR2 = #mech{position = {2,0}, side = right},
   {[MechL, MechR11, MechR22], Turns} =
     katarchy_raid:run([MechL, MechR1, MechR2]),
-  undefined = MechR11#mech.position,
-  undefined = MechR22#mech.position,
+  destroyed = MechR11#mech.position,
+  destroyed = MechR22#mech.position,
   1 = length(Turns).
 
 %% Tests that a perforating attack can also damage allies.
@@ -145,8 +145,8 @@ attack_perforating_melee_friend(_Config) ->
   MechL2 = #mech{position = {2,0}},
   {[MechL1, MechR2, MechL22], Turns} =
     katarchy_raid:run([MechL1, MechR, MechL2]),
-  undefined = MechR2#mech.position,
-  undefined = MechL22#mech.position,
+  destroyed = MechR2#mech.position,
+  destroyed = MechL22#mech.position,
   1 = length(Turns).
 
 %% Tests that a perforating attack doesn't jump over empty spaces.
@@ -166,8 +166,8 @@ attack_perforating_ranged(_Config) ->
   MechR2 = #mech{position = {4,0}, side = right},
   {[MechL, MechR11, MechR22], Turns} =
     katarchy_raid:run([MechL, MechR1, MechR2]),
-  undefined = MechR11#mech.position,
-  undefined = MechR22#mech.position,
+  destroyed = MechR11#mech.position,
+  destroyed = MechR22#mech.position,
   1 = length(Turns).
 
 %% Tests that a ranged attack also damages an ally behind an enemy.
@@ -178,8 +178,8 @@ attack_perforating_ranged_friend(_Config) ->
   MechL2 = #mech{position = {4,0}},
   {[MechL1, MechR2, MechL22], Turns} =
     katarchy_raid:run([MechL1, MechR, MechL2]),
-  undefined = MechR2#mech.position,
-  undefined = MechL22#mech.position,
+  destroyed = MechR2#mech.position,
+  destroyed = MechL22#mech.position,
   1 = length(Turns).
 
 %% Test that the attack power allows to damage a rival faster.
@@ -187,7 +187,7 @@ attack_power(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 5},
   MechR = #mech{position = {1,0}, side = right},
   {[MechL, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechR2#mech.position,
+  destroyed = MechR2#mech.position,
   2 = length(Turns).
 
 %% Test that the attack power allows to overdamage a rival.
@@ -195,7 +195,7 @@ attack_power_overkill(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 500},
   MechR = #mech{position = {1,0}, side = right},
   {[MechL, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechR2#mech.position,
+  destroyed = MechR2#mech.position,
   1 = length(Turns).
 
 %% Test that the attack power allows to damage a rival faster when ranged.
@@ -203,7 +203,7 @@ attack_power_ranged(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 5, skills = [ranged]},
   MechR = #mech{position = {4,0}, side = right},
   {[MechL, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechR2#mech.position,
+  destroyed = MechR2#mech.position,
   2 = length(Turns).
 
 %% Test that one mech can attack at range.
@@ -211,7 +211,7 @@ attack_ranged(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1, skills = [ranged]},
   MechR = #mech{position = {4,0}, side = right},
   {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechR2#mech.position.
+  destroyed = MechR2#mech.position.
 
 %% Test that one mech can block the line of attack.
 attack_ranged_blocked(_Config) ->
@@ -227,8 +227,8 @@ attack_ranged_double_ko(_Config) ->
   MechR = #mech{position = {4,0}, attack_power = 1, skills = [ranged],
                 side = right},
   {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechL2#mech.position,
-  undefined = MechR2#mech.position.
+  destroyed = MechL2#mech.position,
+  destroyed = MechR2#mech.position.
 
 %% Test that one ranged mechs doesn't shoot if not needed.
 attack_ranged_no_target(_Config) ->
@@ -255,7 +255,7 @@ attack_ranged_right(_Config) ->
   MechR = #mech{position = {4,0}, attack_power = 1, skills = [ranged],
                 side = right},
   {[MechL2, MechR], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechL2#mech.position.
+  destroyed = MechL2#mech.position.
 
 %% Test that an attack is delayed for "slow" mechs.
 attack_slow(_Config) ->
@@ -263,7 +263,7 @@ attack_slow(_Config) ->
   MechR = #mech{position = {1,0}, hit_points = 1, side = right},
   {[_, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
   5 = length(Turns), % 2 more turns for hit, 3 turns for recharging
-  undefined = MechR2#mech.position.
+  destroyed = MechR2#mech.position.
 
 %% Test that killing an explosive also damages yourself.
 explosive(_Config) ->
@@ -290,7 +290,7 @@ explosive_chain(_Config) ->
            #mech{position = {2,1}, skills = [{explosive, 10}]},
            #mech{position = {3,1}, side = right, attack_power = 10}],
   {NewMechs, _} = katarchy_raid:run(Mechs),
-  true = lists:all(fun(X) -> undefined == X#mech.position end, NewMechs).
+  true = lists:all(fun(X) -> destroyed == X#mech.position end, NewMechs).
 
 %% Test that killing an explosive also does collateral damage to hidden units.
 explosive_hidden(_Config) ->
@@ -298,7 +298,7 @@ explosive_hidden(_Config) ->
   Explosive = #mech{position = {1,0}, skills = [{explosive, 10}]},
   Collat = #mech{position = {0,0}, skills = [hidden]},
   {[_,_,Collat2], _} = katarchy_raid:run([Mech, Explosive, Collat]),
-  undefined = Collat2#mech.position.
+  destroyed = Collat2#mech.position.
 
 %% Tests killing an explosive from far away.
 explosive_ranged(_Config) ->
@@ -327,16 +327,15 @@ hidden_attacking_ranged(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 2, skills = [ranged, hidden]},
   MechR = #mech{position = {3,0}, side = right},
   {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechR2#mech.position.
+  destroyed = MechR2#mech.position.
 
 %% Tests that a hidden jumping unit can sneak past a sentry.
 hidden_jump(_Config) ->
   MechL = #mech{position = {0,0}, speed = 1, skills = [hidden, jump]},
   MechR = #mech{position = {4,0}, attack_power = 10, side = right},
   {[MechL2, MechR], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechL2#mech.position,
-  true = lists:member(hidden, MechL2#mech.skills),
-  10 = MechL2#mech.hit_points.
+  raided = MechL2#mech.position,
+  true = lists:member(hidden, MechL2#mech.skills).
 
 %% Tests that a hidden unit also gets hit by perforating a unit in front of it.
 hidden_perforating(_Config) ->
@@ -345,7 +344,7 @@ hidden_perforating(_Config) ->
            #mech{position = {2,0}, attack_power = 10,
                  side = right, skills = [perforating]}],
   {[MechH, _, _], _} = katarchy_raid:run(Mechs),
-  undefined = MechH#mech.position.
+  destroyed = MechH#mech.position.
 
 %% Tests that a hidden unit can't be ranged attacked.
 hidden_ranged(_Config) ->
@@ -377,7 +376,7 @@ hidden_ranged_transparent(_Config) ->
   MechR = #mech{position = {4,0}, attack_power = 10,
                 side = right, skills = [ranged]},
   {_, [[MechL, MechHT1, MechR]|_]} = katarchy_raid:run([MechL, MechH, MechR]),
-  undefined = MechHT1#mech.position.
+  destroyed = MechHT1#mech.position.
 
 %% Tests that a hidden unit just in front of a ranged one can get damaged.
 hidden_ranged_transparent_adjacent(_Config) ->
@@ -386,7 +385,7 @@ hidden_ranged_transparent_adjacent(_Config) ->
   MechR = #mech{position = {4,0}, attack_power = 10,
                 side = right, skills = [ranged]},
   {_, [[MechL, MechHT1, MechR]|_]} = katarchy_raid:run([MechL, MechH, MechR]),
-  undefined = MechHT1#mech.position.
+  destroyed = MechHT1#mech.position.
 
 %% Tests that a lane with two mechs hidden don't have any changes.
 hidden_ranged_twice(_Config) ->
@@ -405,7 +404,7 @@ hidden_ranged_twice_transparent(_Config) ->
                 side = right, skills = [ranged]},
   {_, [[MechL, MechH1, MechH2T1, MechR]|_]} =
     katarchy_raid:run([MechL, MechH1, MechH2, MechR]),
-  undefined = MechH2T1#mech.position.
+  destroyed = MechH2T1#mech.position.
 
 %% Tests that a hidden unit gets revealed after attacking.
 hidden_revealed_attacking(_Config) ->
@@ -483,8 +482,8 @@ movement_jump_pairs(_Config) ->
   Mech1 = #mech{position = {0,0}, speed = 1, skills = [jump]},
   Mech2 = #mech{position = {1,0}, speed = 1, skills = [jump]},
   {[MechX, MechY], _} = katarchy_raid:run([Mech1, Mech2]),
-  undefined = MechX#mech.position,
-  undefined = MechY#mech.position.
+  raided = MechX#mech.position,
+  raided = MechY#mech.position.
 
 %% Test that jumping only consumes one movement.
 movement_jump_speed(_Config) ->
@@ -499,14 +498,14 @@ movement_limit_left(_Config) ->
   MechL = #mech{position = {0,0}, speed = 1},
   MechR = #mech{position = {0,1}, side = right},
   {[MechL2, MechR], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechL2#mech.position.
+  raided = MechL2#mech.position.
 
 %% Test that one right minion eventually escapes the raid.
 movement_limit_right(_Config) ->
   MechL = #mech{position = {0,0}},
   MechR = #mech{position = {0,1}, speed = 1, side = right},
   {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
-  undefined = MechR2#mech.position.
+  raided = MechR2#mech.position.
 
 %% Test that a slower mech doesn't block a faster one.
 movement_not_blocking(_Config) ->
@@ -532,7 +531,7 @@ movement_slow(_Config) ->
                skills = [{slow, 3,3}]},
   {[MechF], Turns} = katarchy_raid:run([Mech]),
   8 = length(Turns), % 2 more turns in {1,0}, 3 in {0,0}, 3 in undefined.
-  undefined = MechF#mech.position.
+  raided = MechF#mech.position.
 
 %% Test that the slow mech moves last.
 movement_slow_last(_Config) ->
@@ -590,7 +589,6 @@ sitting_ducks(_Config) ->
   Mech = #mech{},
   {[Mech, Mech], _} = katarchy_raid:run([Mech, Mech]).
 
-
 %% Test that a mech with triattack can damage the three front enemies.
 triattack(_Config) ->
   MechL = #mech{position = {0,1}, attack_power = 10, skills = [triattack]},
@@ -598,7 +596,7 @@ triattack(_Config) ->
             #mech{position = {1,1}, side = right},
             #mech{position = {1,2}, side = right}],
   {[MechL|MechsR2], _} = katarchy_raid:run([MechL|MechsR]),
-  true = lists:all(fun(X) -> undefined == X#mech.position end, MechsR2).
+  true = lists:all(fun(X) -> destroyed == X#mech.position end, MechsR2).
 
 %% Test that a mech with triattack doesn't attack if all enemies are hidden.
 triattack_all_hidden(_Config) ->
@@ -614,8 +612,8 @@ triattack_friendly_fire(_Config) ->
   Ally = #mech{position = {1,0}},
   Enemy = #mech{position = {1,1}, side = right},
   {[Attacker, Ally2, Enemy2], _} = katarchy_raid:run([Attacker, Ally, Enemy]),
-  undefined = Ally2#mech.position,
-  undefined = Enemy2#mech.position.
+  destroyed = Ally2#mech.position,
+  destroyed = Enemy2#mech.position.
 
 %% Test that triattack ranged can cause friendly fire.
 triattack_friendly_fire_ranged(_Config) ->
@@ -624,8 +622,8 @@ triattack_friendly_fire_ranged(_Config) ->
   Ally = #mech{position = {3,0}},
   Enemy = #mech{position = {5,1}, side = right},
   {[Attacker, Ally2, Enemy2], _} = katarchy_raid:run([Attacker, Ally, Enemy]),
-  undefined = Ally2#mech.position,
-  undefined = Enemy2#mech.position.
+  destroyed = Ally2#mech.position,
+  destroyed = Enemy2#mech.position.
 
 %% Test that a mech with ranged triattack can damage up to three enemies.
 triattack_ranged(_Config) ->
@@ -635,7 +633,7 @@ triattack_ranged(_Config) ->
             #mech{position = {4,1}, side = right},
             #mech{position = {5,2}, side = right}],
   {[MechL|MechsR2], _} = katarchy_raid:run([MechL|MechsR]),
-  true = lists:all(fun(X) -> undefined == X#mech.position end, MechsR2).
+  true = lists:all(fun(X) -> destroyed == X#mech.position end, MechsR2).
 
 %% Test that a mech with triattack doesn't attack if it's covered with allies.
 triattack_ranged_allies_cover(_Config) ->

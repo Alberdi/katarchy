@@ -1,5 +1,5 @@
--record(mech, {position = undefined :: undefined | {integer(), integer()},
-               id = undefined :: undefined | binary(),
+-record(mech, {position :: atom() | {integer(), integer()},
+               id :: undefined | binary(),
                attack_power = 0 :: non_neg_integer(),
                hit_points = 10 :: integer(),
                side = left :: left | right,
