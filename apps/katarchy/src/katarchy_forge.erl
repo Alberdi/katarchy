@@ -17,9 +17,9 @@ options(Mech, BPs) ->
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
-apply_mod({skill, add, Value}, Mech) ->
+apply_mod({skills, add, Value}, Mech) ->
   katarchy_mech:skill_add(Value, Mech);
-apply_mod({skill, del, Value}, Mech) ->
+apply_mod({skills, del, Value}, Mech) ->
   katarchy_mech:skill_delete(Value, Mech);
 apply_mod({Field, Fun, Value}, Mech) ->
   Index = mech_index(Field),
@@ -51,6 +51,8 @@ mech_index(attack_power) ->
   #mech.attack_power;
 mech_index(hit_points) ->
   #mech.hit_points;
+mech_index(skills) ->
+  #mech.skills;
 mech_index(speed) ->
   #mech.speed.
 
@@ -80,4 +82,14 @@ satisfies_req_fun(Param1, gte, Param2) ->
 satisfies_req_fun(Param1, lt, Param2) ->
   Param1 < Param2;
 satisfies_req_fun(Param1, lte, Param2) ->
-  Param1 =< Param2.
+  Param1 =< Param2;
+satisfies_req_fun(Param1, has, Param2) ->
+  case lists:keyfind(Param2, 1, Param1) of
+    false ->
+      lists:member(Param2, Param1);
+    _ ->
+      true
+  end;
+satisfies_req_fun(Param1, has_not, Param2) ->
+  not satisfies_req_fun(Param1, has, Param2).
+

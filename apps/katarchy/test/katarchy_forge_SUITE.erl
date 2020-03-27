@@ -46,6 +46,10 @@ all() ->
    requirement_lte_met,
    requirement_lte_met_eq,
    requirement_lte_not_met,
+   requirement_skill_met,
+   requirement_skill_not_met,
+   requirement_skill_negative_met,
+   requirement_skill_negative_not_met,
    same_mech,
    same_mech_modified,
    speed_decrease,
@@ -260,6 +264,31 @@ requirement_lte_not_met(_Config) ->
   [{not_applicable, [{hit_points, lte, 3}], BP}] =
     katarchy_forge:options(#mech{}, [BP]).
 
+%% Test that a blueprint might require a skill.
+requirement_skill_met(_Config) ->
+  BP = #blueprint{reqs = [{skills, has, jump}]},
+  Mech = #mech{skills = [jump]},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a blueprint might require a skill.
+requirement_skill_not_met(_Config) ->
+  BP = #blueprint{reqs = [{skills, has, slow}]},
+  [{not_applicable, [{skills, has, slow}], BP}] =
+    katarchy_forge:options(#mech{}, [BP]).
+
+%% Test that a blueprint might require a skill.
+requirement_skill_negative_met(_Config) ->
+  BP = #blueprint{reqs = [{skills, has_not, triattack}]},
+  Mech = #mech{},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that a blueprint might require a skill.
+requirement_skill_negative_not_met(_Config) ->
+  BP = #blueprint{reqs = [{skills, has_not, exploding}]},
+  Mech = #mech{skills = [{exploding, 3}]},
+  [{not_applicable, [{skills, has_not, exploding}], BP}] =
+    katarchy_forge:options(Mech, [BP]).
+
 %% Test that the returned mech is the input if there aren't any mods.
 same_mech(_Config) ->
   BP = #blueprint{},
@@ -305,13 +334,13 @@ speed_set(_Config) ->
 
 %% Test that a blueprint might add a skill.
 skill_add(_Config) ->
-  BP = #blueprint{mods = [{skill, add, jump}]},
+  BP = #blueprint{mods = [{skills, add, jump}]},
   [{Mech, BP}] = katarchy_forge:options(#mech{}, [BP]),
   true = lists:member(jump, Mech#mech.skills).
 
 %% Test that a blueprint might remove a skill.
 skill_remove(_Config) ->
-  BP = #blueprint{mods = [{skill, del, hidden}]},
+  BP = #blueprint{mods = [{skills, del, hidden}]},
   [{Mech, BP}] = katarchy_forge:options(#mech{}, [BP]),
   false = lists:member(hidden, Mech#mech.skills).
 
