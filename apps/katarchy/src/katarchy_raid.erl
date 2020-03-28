@@ -4,6 +4,7 @@
 
 -export([run/1]).
 
+-define(CRITICAL(V), V * 2).
 -define(GRID_LIMIT, 10).
 
 %%--------------------------------------------------------------------
@@ -21,7 +22,7 @@ adjacent_mechs(Position, Mechs) ->
   lists:filtermap(fun(Side) ->
                       case next_position(Position, Side) of
                         Pos when is_tuple(Pos) ->
-                          case lists:keyfind(Pos, 2, Mechs) of
+                          case mech_at(Pos, Mechs) of
                             false ->
                               false;
                             Mech ->
@@ -45,26 +46,41 @@ can_move(Mech) ->
   Mech#mech.speed > 0.
 
 
+damage(Attacker, Target, Mechs) when is_record(Attacker, mech) ->
+  {Damage, NAttacker} =
+  case tick(critical, Attacker) of
+    {inactive, CMech} -> {CMech#mech.attack_power, CMech};
+    {active, CMech} -> {?CRITICAL(CMech#mech.attack_power), CMech}
+  end,
+  damage(Damage, Target, mech_update(NAttacker, Mechs));
 damage(Damage, Mech, Mechs) ->
-  NewHitPoints = Mech#mech.hit_points - Damage,
-  NewMech = Mech#mech{hit_points = NewHitPoints},
-  NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
-  explode_if_killed(NewMech, NewMechs).
+  NewMech = case tick(dodge, Mech) of
+    {inactive, DodgeMech} ->
+      NewHitPoints = DodgeMech#mech.hit_points - Damage,
+      DodgeMech#mech{hit_points = NewHitPoints};
+    {active, DodgeMech} ->
+      DodgeMech
+  end,
+  explode_if_killed(NewMech, mech_update(NewMech, Mechs)).
 
 
 do_attack(Mechs) ->
   AttackingMechs = lists:filter(fun can_attack/1, Mechs),
   FasterMechs = lists:sort(fun is_faster/2, AttackingMechs),
-  do_attack(FasterMechs, Mechs).
+  Map = lists:zip(Mechs, lists:seq(1, length(Mechs))),
+  FasterIndexes =  [element(2, lists:keyfind(V, 1, Map)) || V <- FasterMechs],
+  do_attack(FasterIndexes, Mechs).
+
 
 do_attack([], Mechs) ->
   Mechs;
-do_attack([Mech|LeftToAttack], Mechs) ->
+do_attack([MechIndex|LeftToAttack], Mechs) ->
+  Mech = lists:nth(MechIndex, Mechs),
   Positions = positions_to_attack(Mech),
   IsRanged = lists:member(ranged, Mech#mech.skills),
   TargetMechs = [begin case IsRanged of 
                          true -> mechs_in_front(P, Mech#mech.side, Mechs);
-                         false -> case lists:keyfind(P, 2, Mechs) of
+                         false -> case mech_at(P, Mechs) of
                                     false -> [];
                                     M -> [M]
                                   end
@@ -84,16 +100,14 @@ do_attack([Mech|LeftToAttack], Mechs) ->
 
 
 do_attack_melee(Attacker, Target, Mechs) ->
-  NewMechs = damage(Attacker#mech.attack_power, Target, Mechs),
+  NewMechs = damage(Attacker, Target, Mechs),
   {Attacker2, NewMechs2} = reveal_hidden(Attacker, NewMechs),
   case lists:member(perforating, Attacker#mech.skills) of
     true ->
       NextPosition = next_position(Target#mech.position, Attacker2#mech.side),
-      case lists:keyfind(NextPosition, 2, NewMechs2) of
-        false ->
-          NewMechs2;
-        NewTarget ->
-          do_attack_melee(Attacker2, NewTarget, NewMechs2)
+      case mech_at(NextPosition, NewMechs2) of
+        false -> NewMechs2;
+        NewTarget -> do_attack_melee(Attacker2, NewTarget, NewMechs2)
       end;
     false ->
       NewMechs2
@@ -103,11 +117,10 @@ do_attack_melee(Attacker, Target, Mechs) ->
 do_attack_ranged(Mech, MechsInFront, Mechs) ->
   case lists:member(perforating, Mech#mech.skills) of
     true ->
-      lists:foldl(fun(X, MechsAcc) ->
-                      damage(Mech#mech.attack_power, X, MechsAcc) end,
+      lists:foldl(fun(X, MechsAcc) -> damage(Mech, X, MechsAcc) end,
                   Mechs, MechsInFront);
     false ->
-      damage(Mech#mech.attack_power, hd(MechsInFront), Mechs)
+      damage(Mech, hd(MechsInFront), Mechs)
   end.
 
 
@@ -123,7 +136,7 @@ do_movement([Mech|LeftToMove], AllMechs, {CurrentPass, PrevPass} = Passes) ->
     {incomplete, NewMech, NewMechs} ->
       {NewMech2, NewMechs2} = reveal_hidden(NewMech, NewMechs),
       NextPosition = next_position(Mech),
-      BumpedMech = lists:keyfind(NextPosition, 2, NewMechs2),
+      BumpedMech = mech_at(NextPosition, NewMechs2),
       {_, NewMechs3} = reveal_hidden(BumpedMech, NewMechs2),
       do_movement(LeftToMove, NewMechs3, {[NewMech2|CurrentPass], PrevPass})
   end;
@@ -136,11 +149,13 @@ do_movement([], NewMechs, {CurrentPass, _}) ->
 explode_if_killed(Mech, Mechs) ->
   case {lists:keyfind(explosive, 1, Mech#mech.skills), Mech#mech.hit_points} of
     {{explosive, Value}, HP} when Value > 0 andalso HP =< 0 ->
-      NewSkills = lists:keyreplace(explosive, 1, Mech#mech.skills,
-                                   {explosive, 0}),
-      NewMech = Mech#mech{skills = NewSkills},
-      NewMechs = lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech),
-      lists:foldl(fun(X, MechsAcc) -> damage(Value, X, MechsAcc) end,
+      DisabledMech = katarchy_mech:skill_delete(explosive, Mech),
+      {Damage, NewMech} = case tick(critical, DisabledMech) of
+                            {active, CMech} -> {?CRITICAL(Value), CMech};
+                            {inactive, CMech} -> {Value, CMech}
+                          end,
+      NewMechs = mech_update(NewMech, Mechs),
+      lists:foldl(fun(X, MechsAcc) -> damage(Damage, X, MechsAcc) end,
                   NewMechs, adjacent_mechs(NewMech#mech.position, NewMechs));
     _ ->
       Mechs
@@ -187,11 +202,19 @@ jump(Mech, Mechs, Speed, BlockedPos) ->
   end.
 
 
+mech_at(Position, Mechs) ->
+  lists:keyfind(Position, #mech.position, Mechs).
+
+
+mech_update(Mech, Mechs) ->
+  lists:keyreplace(Mech#mech.position, #mech.position, Mechs, Mech).
+
+
 mechs_in_front(Position, Side, Mechs) ->
   lists:reverse(mechs_in_front(Position, Side, Mechs, [])).
 
 mechs_in_front(Position, Side, Mechs, LinedMechs) when is_tuple(Position) ->
-  NewLinedMechs = case lists:keyfind(Position, 2, Mechs) of
+  NewLinedMechs = case mech_at(Position, Mechs) of
     false -> LinedMechs;
     Mech -> [Mech|LinedMechs]
   end,
@@ -266,12 +289,12 @@ reveal_hidden(Mech, Mechs) ->
       {Mech, Mechs};
     true ->
       NewMech = katarchy_mech:skill_delete(hidden, Mech),
-      {NewMech, lists:keyreplace(Mech#mech.position, 2, Mechs, NewMech)}
+      {NewMech, mech_update(NewMech, Mechs)}
   end.
 
 
 run_turns(InitialMechs, Turns) ->
-  Mechs = [slow_tick(Mech) || Mech <- InitialMechs],
+  Mechs = [element(2, tick(slow, Mech)) || Mech <- InitialMechs],
   MovedMechs = do_movement(Mechs),
   AttackedMechs = do_attack(MovedMechs),
   FinalMechs = lists:map(fun incapacitate_if_needed/1, AttackedMechs),
@@ -283,18 +306,18 @@ run_turns(InitialMechs, Turns) ->
   end.
 
 
-slow_tick(Mech) ->
-  case lists:keyfind(slow, 1, Mech#mech.skills) of
-    {slow, Max, I} when I > 0 ->
-      NewSkills = lists:keyreplace(slow, 1, Mech#mech.skills,
-                                   {slow, Max, I-1}),
-      Mech#mech{skills = NewSkills};
-    {slow, Max, I} when I =:= 0 ->
-      NewSkills = lists:keyreplace(slow, 1, Mech#mech.skills,
-                                   {slow, Max, Max-1}),
-      Mech#mech{skills = NewSkills};
+tick(Skill, Mech) ->
+  case lists:keyfind(Skill, 1, Mech#mech.skills) of
+    {Skill, Max, I} when I > 0 ->
+      NewSkills = lists:keyreplace(Skill, 1, Mech#mech.skills,
+                                   {Skill, Max, I-1}),
+      {inactive, Mech#mech{skills = NewSkills}};
+    {Skill, Max, I} when I =:= 0 ->
+      NewSkills = lists:keyreplace(Skill, 1, Mech#mech.skills,
+                                   {Skill, Max, Max-1}),
+      {active, Mech#mech{skills = NewSkills}};
     _ ->
-      Mech
+      {inactive, Mech}
   end.
 
 

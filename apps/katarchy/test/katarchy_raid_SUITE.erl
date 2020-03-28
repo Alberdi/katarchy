@@ -34,6 +34,21 @@ all() ->
    attack_ranged_once,
    attack_ranged_right,
    attack_slow,
+   critical_hit,
+   critical_hit_dodged,
+   critical_hit_explosive,
+   critical_hit_explosive_many,
+   critical_hit_explosive_prepared,
+   critical_hit_explosive_used,
+   critical_hit_half,
+   critical_hit_half_twice,
+   critical_hit_perforating,
+   critical_hit_ranged,
+   critical_hit_ranged_perforating,
+   critical_hit_ranged_three_times,
+   dodge,
+   dodge_explosion,
+   dodge_half,
    explosive,
    explosive_area,
    explosive_chain,
@@ -264,6 +279,131 @@ attack_slow(_Config) ->
   {[_, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
   5 = length(Turns), % 2 more turns for hit, 3 turns for recharging
   destroyed = MechR2#mech.position.
+
+%% Test that a mech can do a critical hit that deals double damage.
+critical_hit(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 5,
+                skills = [{critical, 1, 0}]},
+  MechR = #mech{position = {1,0}, attack_power = 10, side = right},
+  {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
+  destroyed = MechL2#mech.position,
+  destroyed = MechR2#mech.position.
+
+%% Test that a dodged critical hit gets used.
+critical_hit_dodged(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 2,
+                skills = [{critical, 2, 0}]},
+  MechR = #mech{position = {1,0}, side = right, skills = [{dodge, 2, 0}]},
+  {_, Turns} = katarchy_raid:run([MechL, MechR]),
+  10 = length(Turns).
+
+%% Test that critical hit also affects explosions.
+critical_hit_explosive(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [{critical, 1, 0}, {explosive, 5}]},
+  MechR = #mech{position = {1,0}, attack_power = 10, side = right},
+  {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
+  destroyed = MechL2#mech.position,
+  destroyed = MechR2#mech.position.
+
+%% Test that critical hit also affects area explosions.
+critical_hit_explosive_many(_Config) ->
+  Mechs = [#mech{position = {0,0}, skills = [{critical, 1, 0}, {explosive, 7}]},
+           #mech{position = {1,0}, attack_power = 10, side = right},
+           #mech{position = {0,1}}],
+  {Mechs2, _} = katarchy_raid:run(Mechs),
+  true = lists:all(fun(X) -> X#mech.position =:= destroyed end, Mechs2).
+
+%% Test that critical hit gets prepared by attacking before exploding.
+critical_hit_explosive_prepared(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 1, speed = 2,
+                skills = [{critical, 2, 1}, {explosive, 5}]},
+  MechR = #mech{position = {1,0}, attack_power = 10, side = right},
+  {[_, MechR2], _} = katarchy_raid:run([MechL, MechR]),
+  destroyed = MechR2#mech.position.
+
+%% Test that critical hit gets used if attacking before exploding.
+critical_hit_explosive_used(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 1, speed = 2,
+                skills = [{critical, 2, 0}, {explosive, 5}]},
+  MechR = #mech{position = {1,0}, attack_power = 10, side = right},
+  {[_, MechR2], _} = katarchy_raid:run([MechL, MechR]),
+  3 = MechR2#mech.hit_points.
+
+%% Test that a mech can do a critical hit that sometimes deals double damage.
+critical_hit_half(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 5,
+                skills = [{critical, 2, 1}]},
+  MechR = #mech{position = {1,0}, hit_points = 15, side = right},
+  {_, Turns} = katarchy_raid:run([MechL, MechR]),
+  2 = length(Turns).
+
+%% Test that a mech can do a critical hit twice with some normal hits between.
+critical_hit_half_twice(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 4,
+                skills = [{critical, 2, 0}]},
+  MechR = #mech{position = {1,0}, hit_points = 20, side = right},
+  {_, Turns} = katarchy_raid:run([MechL, MechR]),
+  3 = length(Turns).
+
+%% Test that a critical hit can perforate.
+critical_hit_perforating(_Config) ->
+  Mechs = [#mech{position = {0,0}, attack_power = 5,
+                 skills = [{critical, 5, 0}, perforating]},
+           #mech{position = {1,0}, side = right},
+           #mech{position = {2,0}, side = right}],
+  {[_, MechR1, MechR2], Turns} = katarchy_raid:run(Mechs),
+  destroyed = MechR1#mech.position,
+  destroyed = MechR2#mech.position,
+  1 = length(Turns).
+
+%% Test that a mech can do a critical hit while ranged.
+critical_hit_ranged(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 6,
+                skills = [{critical, 1, 0}, ranged]},
+  MechR = #mech{position = {2,0}, side = right},
+  {_, Turns} = katarchy_raid:run([MechL, MechR]),
+  1 = length(Turns).
+
+%% Test that a ranged critical hit can perforate.
+critical_hit_ranged_perforating(_Config) ->
+  Mechs = [#mech{position = {0,0}, attack_power = 5,
+                 skills = [{critical, 4, 0}, perforating, ranged]},
+           #mech{position = {2,0}, side = right},
+           #mech{position = {5,0}, side = right}],
+  {[_, MechR1, MechR2], Turns} = katarchy_raid:run(Mechs),
+  destroyed = MechR1#mech.position,
+  destroyed = MechR2#mech.position,
+  1 = length(Turns).
+
+%% Test that a mech can do a critical hit while ranged every three hits.
+critical_hit_ranged_three_times(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 5,
+                skills = [{critical, 3, 0}, ranged]},
+  MechR = #mech{position = {5,0}, hit_points = 20, side = right},
+  {_, Turns} = katarchy_raid:run([MechL, MechR]),
+  3 = length(Turns).
+
+%% Test that a dodging mech can avoid getting hit.
+dodge(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 1, skills = [{dodge, 1, 0}]},
+  MechR = #mech{position = {1,0}, attack_power = 10, side = right},
+  {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
+  destroyed = MechR2#mech.position.
+
+%% Test that a dodging mech can avoid getting hit by an explosion.
+dodge_explosion(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10, skills = [{dodge, 1, 0}]},
+  MechR = #mech{position = {1,0}, side = right, skills = [{explosive, 10}]},
+  {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
+  destroyed = MechR2#mech.position.
+
+%% Test that a dodging mech can avoid getting hit half of the time
+dodge_half(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [{dodge, 2, 0}]},
+  MechR = #mech{position = {1,0}, attack_power = 10, side = right},
+  {[MechL2, MechR], Turns} = katarchy_raid:run([MechL, MechR]),
+  destroyed = MechL2#mech.position,
+  2 = length(Turns).
 
 %% Test that killing an explosive also damages yourself.
 explosive(_Config) ->
