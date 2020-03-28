@@ -36,6 +36,8 @@ all() ->
    requirement_and_mod_not_applicable,
    requirement_eq_met,
    requirement_eq_not_met,
+   requirement_eq_negative_met,
+   requirement_eq_negative_not_met,
    requirement_gt_met,
    requirement_gt_not_met,
    requirement_gte_met,
@@ -204,6 +206,19 @@ requirement_eq_not_met(_Config) ->
   [{not_applicable, [{attack_power, eq, 1}], BP}] =
     katarchy_forge:options(Mech, [BP]).
 
+%% Test that a negative eq requirement can be met.
+requirement_eq_negative_met(_Config) ->
+  BP = #blueprint{reqs = [{speed, {neg, eq}, 1}]},
+  Mech = #mech{speed = 2},
+  [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
+
+%% Test that an eq requirement can't be met.
+requirement_eq_negative_not_met(_Config) ->
+  BP = #blueprint{reqs = [{hit_points, {neg, eq}, 6}]},
+  Mech = #mech{hit_points = 6},
+  [{not_applicable, [{hit_points, {neg, eq}, 6}], BP}] =
+    katarchy_forge:options(Mech, [BP]).
+
 %% Test that a gt requirement can be met with a strictly greater parameter.
 requirement_gt_met(_Config) ->
   BP = #blueprint{reqs = [{speed, gt, 0}]},
@@ -278,15 +293,15 @@ requirement_skill_not_met(_Config) ->
 
 %% Test that a blueprint might require a skill.
 requirement_skill_negative_met(_Config) ->
-  BP = #blueprint{reqs = [{skills, has_not, triattack}]},
+  BP = #blueprint{reqs = [{skills, {neg, has}, triattack}]},
   Mech = #mech{},
   [{Mech, BP}] = katarchy_forge:options(Mech, [BP]).
 
 %% Test that a blueprint might require a skill.
 requirement_skill_negative_not_met(_Config) ->
-  BP = #blueprint{reqs = [{skills, has_not, exploding}]},
+  BP = #blueprint{reqs = [{skills, {neg, has}, exploding}]},
   Mech = #mech{skills = [{exploding, 3}]},
-  [{not_applicable, [{skills, has_not, exploding}], BP}] =
+  [{not_applicable, [{skills, {neg, has}, exploding}], BP}] =
     katarchy_forge:options(Mech, [BP]).
 
 %% Test that the returned mech is the input if there aren't any mods.

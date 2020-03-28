@@ -90,6 +90,6 @@ satisfies_req_fun(Param1, has, Param2) ->
     _ ->
       true
   end;
-satisfies_req_fun(Param1, has_not, Param2) ->
-  not satisfies_req_fun(Param1, has, Param2).
+satisfies_req_fun(Param1, {neg, Fun}, Param2) ->
+  not satisfies_req_fun(Param1, Fun, Param2).
 
