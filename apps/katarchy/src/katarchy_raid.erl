@@ -54,10 +54,23 @@ damage(Attacker, Target, Mechs) when is_record(Attacker, mech) ->
   end,
   damage(Damage, Target, mech_update(NAttacker, Mechs));
 damage(Damage, Mech, Mechs) ->
-  NewMech = case tick(dodge, Mech) of
+  NewMech =
+  case tick(dodge, Mech) of
     {inactive, DodgeMech} ->
-      NewHitPoints = DodgeMech#mech.hit_points - Damage,
-      DodgeMech#mech{hit_points = NewHitPoints};
+      case lists:keyfind(eshield, 1, DodgeMech#mech.skills) of
+        false ->
+          NewHitPoints = DodgeMech#mech.hit_points - Damage,
+          DodgeMech#mech{hit_points = NewHitPoints};
+        {eshield, Max, V} when Damage =< V ->
+          Skills = DodgeMech#mech.skills,
+          DodgeMech#mech{skills = lists:keyreplace(eshield, 1, Skills,
+                                                   {eshield, Max, V-Damage})};
+        {eshield, Max, V} ->
+          Skills = DodgeMech#mech.skills,
+          NSkills = lists:keyreplace(eshield, 1, Skills, {eshield, Max, 0}),
+          NewHitPoints = DodgeMech#mech.hit_points - Damage + V,
+          DodgeMech#mech{hit_points = NewHitPoints, skills = NSkills}
+      end;
     {active, DodgeMech} ->
       DodgeMech
   end,
@@ -183,7 +196,7 @@ is_faster(M1, M2) ->
 
 is_slowed(Mech) ->
   case lists:keyfind(slow, 1, Mech#mech.skills) of
-    {slow, _Max, I} when I =/= 0 -> true;
+    {slow, _Max, I} when I =/= 1 -> true;
     _ -> false
   end.
 
@@ -294,7 +307,7 @@ reveal_hidden(Mech, Mechs) ->
 
 
 run_turns(InitialMechs, Turns) ->
-  Mechs = [element(2, tick(slow, Mech)) || Mech <- InitialMechs],
+  Mechs = [tick_turn(Mech) || Mech <- InitialMechs],
   MovedMechs = do_movement(Mechs),
   AttackedMechs = do_attack(MovedMechs),
   FinalMechs = lists:map(fun incapacitate_if_needed/1, AttackedMechs),
@@ -308,16 +321,28 @@ run_turns(InitialMechs, Turns) ->
 
 tick(Skill, Mech) ->
   case lists:keyfind(Skill, 1, Mech#mech.skills) of
-    {Skill, Max, I} when I > 0 ->
+    {Skill, Max, I} when I < Max ->
       NewSkills = lists:keyreplace(Skill, 1, Mech#mech.skills,
-                                   {Skill, Max, I-1}),
+                                   {Skill, Max, I+1}),
       {inactive, Mech#mech{skills = NewSkills}};
-    {Skill, Max, I} when I =:= 0 ->
+    {Skill, Max, I} when I >= Max ->
       NewSkills = lists:keyreplace(Skill, 1, Mech#mech.skills,
-                                   {Skill, Max, Max-1}),
+                                   {Skill, Max, 1}),
       {active, Mech#mech{skills = NewSkills}};
     _ ->
       {inactive, Mech}
+  end.
+
+
+tick_turn(Mech) ->
+  {_, SlowMech} = tick(slow, Mech),
+  case lists:keyfind(eshield, 1, SlowMech#mech.skills) of
+    {eshield, Max, V} when V < Max ->
+      NewSkills = lists:keyreplace(eshield, 1, SlowMech#mech.skills,
+                                   {eshield, Max, V+1}),
+      SlowMech#mech{skills = NewSkills};
+    _ ->
+      SlowMech
   end.
 
 

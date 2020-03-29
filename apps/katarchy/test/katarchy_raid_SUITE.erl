@@ -46,9 +46,14 @@ all() ->
    critical_hit_ranged,
    critical_hit_ranged_perforating,
    critical_hit_ranged_three_times,
+   critical_hit_triattack,
    dodge,
    dodge_explosion,
    dodge_half,
+   eshield,
+   eshield_dodge,
+   eshield_partial,
+   eshield_regenerating,
    explosive,
    explosive_area,
    explosive_chain,
@@ -112,7 +117,7 @@ attack_double_ko(_Config) ->
 %% Test that two mechs can ko each other even if one is slower
 attack_double_ko_slow(_Config) ->
   MechR = #mech{position = {1,0}, attack_power = 1, side = right},
-  MechL = #mech{position = {0,0}, attack_power = 2, skills = [{slow, 2, 2}]},
+  MechL = #mech{position = {0,0}, attack_power = 2, skills = [{slow, 2, 1}]},
   {[MechR2, MechL2], _} = katarchy_raid:run([MechR, MechL]),
   destroyed = MechL2#mech.position,
   destroyed = MechR2#mech.position.
@@ -274,7 +279,7 @@ attack_ranged_right(_Config) ->
 
 %% Test that an attack is delayed for "slow" mechs.
 attack_slow(_Config) ->
-  MechL = #mech{position = {0,0}, attack_power = 1, skills = [{slow, 3, 3}]},
+  MechL = #mech{position = {0,0}, attack_power = 1, skills = [{slow, 3, 1}]},
   MechR = #mech{position = {1,0}, hit_points = 1, side = right},
   {[_, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
   5 = length(Turns), % 2 more turns for hit, 3 turns for recharging
@@ -283,7 +288,7 @@ attack_slow(_Config) ->
 %% Test that a mech can do a critical hit that deals double damage.
 critical_hit(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 5,
-                skills = [{critical, 1, 0}]},
+                skills = [{critical, 1, 1}]},
   MechR = #mech{position = {1,0}, attack_power = 10, side = right},
   {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   destroyed = MechL2#mech.position,
@@ -292,14 +297,14 @@ critical_hit(_Config) ->
 %% Test that a dodged critical hit gets used.
 critical_hit_dodged(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 2,
-                skills = [{critical, 2, 0}]},
-  MechR = #mech{position = {1,0}, side = right, skills = [{dodge, 2, 0}]},
+                skills = [{critical, 2, 2}]},
+  MechR = #mech{position = {1,0}, side = right, skills = [{dodge, 2, 2}]},
   {_, Turns} = katarchy_raid:run([MechL, MechR]),
   10 = length(Turns).
 
 %% Test that critical hit also affects explosions.
 critical_hit_explosive(_Config) ->
-  MechL = #mech{position = {0,0}, skills = [{critical, 1, 0}, {explosive, 5}]},
+  MechL = #mech{position = {0,0}, skills = [{critical, 1, 1}, {explosive, 5}]},
   MechR = #mech{position = {1,0}, attack_power = 10, side = right},
   {[MechL2, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   destroyed = MechL2#mech.position,
@@ -307,7 +312,7 @@ critical_hit_explosive(_Config) ->
 
 %% Test that critical hit also affects area explosions.
 critical_hit_explosive_many(_Config) ->
-  Mechs = [#mech{position = {0,0}, skills = [{critical, 1, 0}, {explosive, 7}]},
+  Mechs = [#mech{position = {0,0}, skills = [{critical, 1, 1}, {explosive, 7}]},
            #mech{position = {1,0}, attack_power = 10, side = right},
            #mech{position = {0,1}}],
   {Mechs2, _} = katarchy_raid:run(Mechs),
@@ -324,7 +329,7 @@ critical_hit_explosive_prepared(_Config) ->
 %% Test that critical hit gets used if attacking before exploding.
 critical_hit_explosive_used(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 1, speed = 2,
-                skills = [{critical, 2, 0}, {explosive, 5}]},
+                skills = [{critical, 2, 2}, {explosive, 5}]},
   MechR = #mech{position = {1,0}, attack_power = 10, side = right},
   {[_, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   3 = MechR2#mech.hit_points.
@@ -340,7 +345,7 @@ critical_hit_half(_Config) ->
 %% Test that a mech can do a critical hit twice with some normal hits between.
 critical_hit_half_twice(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 4,
-                skills = [{critical, 2, 0}]},
+                skills = [{critical, 2, 2}]},
   MechR = #mech{position = {1,0}, hit_points = 20, side = right},
   {_, Turns} = katarchy_raid:run([MechL, MechR]),
   3 = length(Turns).
@@ -348,7 +353,7 @@ critical_hit_half_twice(_Config) ->
 %% Test that a critical hit can perforate.
 critical_hit_perforating(_Config) ->
   Mechs = [#mech{position = {0,0}, attack_power = 5,
-                 skills = [{critical, 5, 0}, perforating]},
+                 skills = [{critical, 5, 5}, perforating]},
            #mech{position = {1,0}, side = right},
            #mech{position = {2,0}, side = right}],
   {[_, MechR1, MechR2], Turns} = katarchy_raid:run(Mechs),
@@ -359,7 +364,7 @@ critical_hit_perforating(_Config) ->
 %% Test that a mech can do a critical hit while ranged.
 critical_hit_ranged(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 6,
-                skills = [{critical, 1, 0}, ranged]},
+                skills = [{critical, 1, 1}, ranged]},
   MechR = #mech{position = {2,0}, side = right},
   {_, Turns} = katarchy_raid:run([MechL, MechR]),
   1 = length(Turns).
@@ -367,7 +372,7 @@ critical_hit_ranged(_Config) ->
 %% Test that a ranged critical hit can perforate.
 critical_hit_ranged_perforating(_Config) ->
   Mechs = [#mech{position = {0,0}, attack_power = 5,
-                 skills = [{critical, 4, 0}, perforating, ranged]},
+                 skills = [{critical, 4, 4}, perforating, ranged]},
            #mech{position = {2,0}, side = right},
            #mech{position = {5,0}, side = right}],
   {[_, MechR1, MechR2], Turns} = katarchy_raid:run(Mechs),
@@ -378,32 +383,72 @@ critical_hit_ranged_perforating(_Config) ->
 %% Test that a mech can do a critical hit while ranged every three hits.
 critical_hit_ranged_three_times(_Config) ->
   MechL = #mech{position = {0,0}, attack_power = 5,
-                skills = [{critical, 3, 0}, ranged]},
+                skills = [{critical, 3, 3}, ranged]},
   MechR = #mech{position = {5,0}, hit_points = 20, side = right},
   {_, Turns} = katarchy_raid:run([MechL, MechR]),
   3 = length(Turns).
 
+%% Test that a mech can do a critical hit while triattacking.
+critical_hit_triattack(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 5,
+                skills = [{critical, 3, 3}, triattack]},
+  MechR1 = #mech{position = {1,0}, side = right},
+  MechR2 = #mech{position = {1,1}, side = right},
+  {[_, MechR12, MechR22], Turns} = katarchy_raid:run([MechL, MechR1, MechR2]),
+  destroyed = MechR12#mech.position,
+  destroyed = MechR22#mech.position,
+  1 = length(Turns).
+
 %% Test that a dodging mech can avoid getting hit.
 dodge(_Config) ->
-  MechL = #mech{position = {0,0}, attack_power = 1, skills = [{dodge, 1, 0}]},
+  MechL = #mech{position = {0,0}, attack_power = 1, skills = [{dodge, 1, 1}]},
   MechR = #mech{position = {1,0}, attack_power = 10, side = right},
   {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   destroyed = MechR2#mech.position.
 
 %% Test that a dodging mech can avoid getting hit by an explosion.
 dodge_explosion(_Config) ->
-  MechL = #mech{position = {0,0}, attack_power = 10, skills = [{dodge, 1, 0}]},
+  MechL = #mech{position = {0,0}, attack_power = 10, skills = [{dodge, 1, 1}]},
   MechR = #mech{position = {1,0}, side = right, skills = [{explosive, 10}]},
   {[MechL, MechR2], _} = katarchy_raid:run([MechL, MechR]),
   destroyed = MechR2#mech.position.
 
-%% Test that a dodging mech can avoid getting hit half of the time
+%% Test that a dodging mech can avoid getting hit half of the time.
 dodge_half(_Config) ->
-  MechL = #mech{position = {0,0}, skills = [{dodge, 2, 0}]},
+  MechL = #mech{position = {0,0}, skills = [{dodge, 2, 2}]},
   MechR = #mech{position = {1,0}, attack_power = 10, side = right},
   {[MechL2, MechR], Turns} = katarchy_raid:run([MechL, MechR]),
   destroyed = MechL2#mech.position,
   2 = length(Turns).
+
+%% Test that a mech might have an energy shield that prevents damage.
+eshield(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [{eshield, 1, 0}]},
+  MechR = #mech{position = {1,0}, attack_power = 1, side = right},
+  {[MechL, MechR], _} = katarchy_raid:run([MechL, MechR]).
+
+%% Test that dodging doesn't use the eshield.
+eshield_dodge(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [{dodge, 8, 8}, {eshield, 9, 9}]},
+  MechR = #mech{position = {1,0}, attack_power = 40, side = right},
+  {[MechL2, _], _} = katarchy_raid:run([MechL, MechR]),
+  true = lists:member({eshield, 9, 9}, MechL2#mech.skills).
+
+%% Test that a mech might have an eshield that prevents part of the damage.
+eshield_partial(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                  skills = [{eshield, 1, 0}]},
+  MechR = #mech{position = {1,0}, attack_power = 10, side = right},
+  {[MechL2, _], _} = katarchy_raid:run([MechL, MechR]),
+  1 = MechL2#mech.hit_points.
+
+%% Test that a mech might have an eshield that regenerates a point per turn.
+eshield_regenerating(_Config) ->
+  MechL = #mech{position = {0,0}, skills = [{eshield, 4, 0}]},
+  {[MechL2], Turns} = katarchy_raid:run([MechL]),
+  true = lists:member({eshield, 4, 4}, MechL2#mech.skills),
+  4 = length(Turns).
 
 %% Test that killing an explosive also damages yourself.
 explosive(_Config) ->
@@ -668,7 +713,7 @@ movement_obstacle(_Config) ->
 %% Test that one mech can move slowly.
 movement_slow(_Config) ->
   Mech = #mech{position = {1,0}, speed = 1, side = right,
-               skills = [{slow, 3,3}]},
+               skills = [{slow, 3, 1}]},
   {[MechF], Turns} = katarchy_raid:run([Mech]),
   8 = length(Turns), % 2 more turns in {1,0}, 3 in {0,0}, 3 in undefined.
   raided = MechF#mech.position.
