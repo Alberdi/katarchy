@@ -34,6 +34,12 @@ all() ->
    attack_ranged_once,
    attack_ranged_right,
    attack_slow,
+   ballistic,
+   ballistic_farther_first,
+   ballistic_hidden,
+   ballistic_hidden_other,
+   ballistic_hidden_other_perforating,
+   ballistic_perforating,
    critical_hit,
    critical_hit_dodged,
    critical_hit_explosive,
@@ -284,6 +290,61 @@ attack_slow(_Config) ->
   {[_, MechR2], Turns} = katarchy_raid:run([MechL, MechR]),
   5 = length(Turns), % 2 more turns for hit, 3 turns for recharging
   destroyed = MechR2#mech.position.
+
+%% Test that a ballistic mech can attack above obstacles.
+ballistic(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, ballistic]},
+  Obstacle = #mech{position = {2,0}},
+  MechR = #mech{position = {5,0}, side = right},
+  {[_, _, MechR2], _} = katarchy_raid:run([MechL, Obstacle, MechR]),
+  destroyed = MechR2#mech.position.
+
+%% Test that a ballistic mech attacks the farther enemy first.
+ballistic_farther_first(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, ballistic]},
+  MechR1 = #mech{position = {2,0}, side = right},
+  MechR2 = #mech{position = {5,0}, side = right},
+  {[_, _, _], [[MechL, MechR1, MechR21], [MechL, MechR12, MechR21]]}
+    = katarchy_raid:run([MechL, MechR1, MechR2]),
+  destroyed = MechR12#mech.position,
+  destroyed = MechR21#mech.position.
+
+%% Test that ballistic skips hidden mechs.
+ballistic_hidden(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, ballistic]},
+  MechR = #mech{position = {5,0}, side = right, skills = [hidden]},
+  {[MechL, MechR], _} = katarchy_raid:run([MechL, MechR]).
+
+%% Test that ballistic skips hidden mechs and attacks the next enemy.
+ballistic_hidden_other(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, ballistic]},
+  MechR1 = #mech{position = {2,0}, side = right},
+  MechR2 = #mech{position = {5,0}, side = right, skills = [hidden]},
+  {[MechL, MechR1F, MechR2], _} = katarchy_raid:run([MechL, MechR1, MechR2]),
+  destroyed = MechR1F#mech.position.
+
+%% Test that ballistic/perfoarting skips hidden mechs.
+ballistic_hidden_other_perforating(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, ballistic]},
+  MechR1 = #mech{position = {2,0}, side = right},
+  MechR2 = #mech{position = {5,0}, side = right, skills = [hidden]},
+  {[MechL, MechR1F, MechR2], _} = katarchy_raid:run([MechL, MechR1, MechR2]),
+  destroyed = MechR1F#mech.position.
+
+%% Test that ballistic/perfoarting damages all mechs in the line.
+ballistic_perforating(_Config) ->
+  MechL1 = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, ballistic, perforating]},
+  MechL2 = #mech{position = {2,0}},
+  MechR = #mech{position = {5,0}, side = right},
+  {[MechL1, MechL2F, MechRF], _} = katarchy_raid:run([MechL1, MechL2, MechR]),
+  destroyed = MechL2F#mech.position,
+  destroyed = MechRF#mech.position.
 
 %% Test that a mech can do a critical hit that deals double damage.
 critical_hit(_Config) ->

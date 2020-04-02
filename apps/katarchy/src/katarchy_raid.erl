@@ -90,22 +90,25 @@ do_attack([], Mechs) ->
 do_attack([MechIndex|LeftToAttack], Mechs) ->
   Mech = lists:nth(MechIndex, Mechs),
   Positions = positions_to_attack(Mech),
+  IsBallistic = lists:member(ballistic, Mech#mech.skills),
   IsRanged = lists:member(ranged, Mech#mech.skills),
-  TargetMechs = [begin case IsRanged of 
-                         true -> mechs_in_front(P, Mech#mech.side, Mechs);
-                         false -> case mech_at(P, Mechs) of
-                                    false -> [];
-                                    M -> [M]
-                                  end
-                       end end || P <- Positions],
+  Targets = [case {IsRanged, IsBallistic} of
+               {true, false} -> mechs_in_front(P, Mech#mech.side, Mechs);
+               {true, true} ->  lists:reverse(mechs_in_front(P, Mech#mech.side,
+                                                             Mechs));
+               {false, _} -> case mech_at(P, Mechs) of
+                               false -> [];
+                               M -> [M]
+                             end
+             end || P <- Positions],
   NewMechs =
-  case lists:any(fun(X) -> visible_lane_enemy(Mech, X) end, TargetMechs) of
+  case lists:any(fun(X) -> visible_lane_enemy(Mech, X) end, Targets) of
     true ->
       lists:foldl(fun(MechsInFront, Ms) when IsRanged ->
-                      do_attack_ranged(Mech, MechsInFront, Ms);
+                      do_attack_ranged(Mech, MechsInFront, Ms, IsBallistic);
                      ([Target], Ms) ->
                       do_attack_melee(Mech, Target, Ms) end,
-                  Mechs, TargetMechs);
+                  Mechs, Targets);
     false ->
       Mechs
   end,
@@ -127,13 +130,17 @@ do_attack_melee(Attacker, Target, Mechs) ->
   end.
 
 
-do_attack_ranged(Mech, MechsInFront, Mechs) ->
+do_attack_ranged(Mech, MechsInFront, Mechs, IsBallistic) ->
   case lists:member(perforating, Mech#mech.skills) of
     true ->
       lists:foldl(fun(X, MechsAcc) -> damage(Mech, X, MechsAcc) end,
                   Mechs, MechsInFront);
     false ->
-      damage(Mech, hd(MechsInFront), Mechs)
+      [Target|Others] = MechsInFront,
+      case {lists:member(hidden, Target#mech.skills), IsBallistic} of
+        {true, true} -> do_attack_ranged(Mech, Others, Mechs, IsBallistic);
+        _ -> damage(Mech, hd(MechsInFront), Mechs)
+      end
   end.
 
 
