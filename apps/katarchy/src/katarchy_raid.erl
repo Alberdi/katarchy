@@ -93,9 +93,14 @@ do_attack([MechIndex|LeftToAttack], Mechs) ->
   IsBallistic = lists:member(ballistic, Mech#mech.skills),
   IsRanged = lists:member(ranged, Mech#mech.skills),
   Targets = [case {IsRanged, IsBallistic} of
+               {true, true} ->
+                 Ms = lists:reverse(mechs_in_front(P, Mech#mech.side, Mechs)),
+                 NotTall = fun(M) -> not lists:member(tall, M#mech.skills) end,
+                 case lists:dropwhile(NotTall, Ms) of
+                   [] -> Ms;
+                   L -> L
+                 end;
                {true, false} -> mechs_in_front(P, Mech#mech.side, Mechs);
-               {true, true} ->  lists:reverse(mechs_in_front(P, Mech#mech.side,
-                                                             Mechs));
                {false, _} -> case mech_at(P, Mechs) of
                                false -> [];
                                M -> [M]
@@ -248,16 +253,17 @@ move(_Mech, 0, Mechs) ->
   {complete, Mechs};
 move(Mech, Speed, Mechs) ->
   TargetPos = next_position(Mech),
-  case is_tuple(TargetPos) andalso lists:keymember(TargetPos, 2, Mechs) of
-    true ->
-      case lists:member(jump, Mech#mech.skills) of
+  case is_tuple(TargetPos) andalso lists:keyfind(TargetPos, 2, Mechs) of
+    false ->
+      move_step(Mech, TargetPos, Speed, Mechs);
+    TargetMech ->
+      case lists:member(jump, Mech#mech.skills) andalso
+           not lists:member(tall, TargetMech#mech.skills) of
         true ->
           jump(Mech, Mechs, Speed, TargetPos);
         false ->
           {incomplete, Mech, Mechs}
-      end;
-    false ->
-      move_step(Mech, TargetPos, Speed, Mechs)
+      end
   end.
 
 
@@ -366,8 +372,7 @@ validate_setup(Mechs) ->
 
 visible_lane_enemy(_Mech, []) ->
   false;
-visible_lane_enemy(Mech, ListMechs) ->
-  [Target|OtherMechs] = ListMechs,
+visible_lane_enemy(Mech, [Target|OtherMechs]) ->
   IsEnemy = Target#mech.side =/= Mech#mech.side,
   IsHidden = lists:member(hidden, Target#mech.skills),
   case {IsEnemy, IsHidden} of

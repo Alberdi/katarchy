@@ -102,6 +102,9 @@ all() ->
    not_same_position,
    single_mech,
    sitting_ducks,
+   tall_blocks_ballistic,
+   tall_blocks_ballistic_enemies,
+   tall_blocks_jump,
    triattack,
    triattack_all_hidden,
    triattack_friendly_fire,
@@ -834,6 +837,31 @@ single_mech(_Config) ->
 sitting_ducks(_Config) ->
   Mech = #mech{},
   {[Mech, Mech], _} = katarchy_raid:run([Mech, Mech]).
+
+%% Test that a tall mech blocks ballistic attempts over it.
+tall_blocks_ballistic(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, ballistic]},
+  Obstacle = #mech{position = {2,0}, skills = [tall]},
+  MechR = #mech{position = {5,0}, side = right},
+  {[MechL, Obstacle, MechR], _} = katarchy_raid:run([MechL, Obstacle, MechR]).
+
+%% Test that a tall mech gets hit before the allies behind it.
+tall_blocks_ballistic_enemies(_Config) ->
+  MechL = #mech{position = {0,0}, attack_power = 10,
+                skills = [ranged, ballistic]},
+  Obstacle = #mech{position = {2,0}, skills = [tall], side = right},
+  MechR = #mech{position = {5,0}, side = right},
+  {_, [[MechL, Obstacle2, MechR], [MechL, Obstacle2, MechR2]]} =
+  katarchy_raid:run([MechL, Obstacle, MechR]),
+  destroyed = Obstacle2#mech.position,
+  destroyed = MechR2#mech.position.
+
+%% Test that a tall mech blocks jumping over it.
+tall_blocks_jump(_Config) ->
+  Mech = #mech{position = {0,0}, speed = 1, skills = [jump]},
+  Obstacle = #mech{position = {1,0}, skills = [tall]},
+  {[Mech, Obstacle], _} = katarchy_raid:run([Mech, Obstacle]).
 
 %% Test that a mech with triattack can damage the three front enemies.
 triattack(_Config) ->
